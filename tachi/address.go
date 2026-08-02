@@ -13,10 +13,14 @@ type AddressService service
 
 // AddressResponse is returned by AddressService.Get.
 type AddressResponse struct {
-	Pubkey     string `json:"pubkey"`
-	BalanceSat int64  `json:"balance_sat"`
-	Nonce      uint64 `json:"nonce"`
-	VTXOCount  int    `json:"vtxo_count"`
+	// Pubkey is the normalized 32-byte x-only public key hex for the queried address.
+	Pubkey string `json:"pubkey"`
+	// BalanceSat is the total unspent balance in satoshis summed across the address's VTXOs.
+	BalanceSat int64 `json:"balance_sat"`
+	// Nonce is the last used transaction nonce for the address; the next tx should use Nonce+1.
+	Nonce uint64 `json:"nonce"`
+	// VTXOCount is the number of unspent VTXOs owned by the address.
+	VTXOCount int `json:"vtxo_count"`
 }
 
 // Get returns account detail (balance, nonce, VTXO count) for a public key
@@ -32,21 +36,32 @@ func (s *AddressService) Get(ctx context.Context, address string) (*AddressRespo
 
 // VTXOItem is a single VTXO in an AddressService.VTXOs response.
 type VTXOItem struct {
-	ID           string `json:"id"`
-	Owner        string `json:"owner"`
-	Amount       int64  `json:"amount"`
-	Spent        bool   `json:"spent"`
-	Height       int64  `json:"height"`
-	Script       string `json:"script"`
-	Locked       bool   `json:"locked"`
+	// ID is the hex-encoded 32-byte VTXO identifier.
+	ID string `json:"id"`
+	// Owner is the hex-encoded owner public key authorized to spend this VTXO.
+	Owner string `json:"owner"`
+	// Amount is the VTXO value in satoshis.
+	Amount int64 `json:"amount"`
+	// Spent is true once this VTXO has been consumed by a confirmed transaction.
+	Spent bool `json:"spent"`
+	// Height is the block height at which this VTXO was created.
+	Height int64 `json:"height"`
+	// Script is the hex-encoded locking script associated with this VTXO.
+	Script string `json:"script"`
+	// Locked is true while this VTXO is bound to a vault and not freely spendable.
+	Locked bool `json:"locked"`
+	// VaultAddress is the bech32m P2TR vault address when Locked is true; empty otherwise.
 	VaultAddress string `json:"vault_address,omitempty"`
 }
 
 // AddressVTXOsResponse is returned by AddressService.VTXOs.
 type AddressVTXOsResponse struct {
-	Pubkey string     `json:"pubkey"`
-	VTXOs  []VTXOItem `json:"vtxos"`
-	Count  int        `json:"count"`
+	// Pubkey is the normalized 32-byte x-only public key hex the VTXOs are owned by.
+	Pubkey string `json:"pubkey"`
+	// VTXOs is the list of matching VTXOs (unspent by default, all when includeSpent=true).
+	VTXOs []VTXOItem `json:"vtxos"`
+	// Count is the number of entries returned in VTXOs.
+	Count int `json:"count"`
 }
 
 // VTXOs returns VTXOs owned by address. By default only unspent VTXOs are
@@ -68,12 +83,18 @@ func (s *AddressService) VTXOs(ctx context.Context, address string, includeSpent
 // Pagination is height-cursor based, same semantics as
 // TxService.List's ListTransactionsResponse.
 type AddressTransactionsResponse struct {
-	Pubkey            string                `json:"pubkey"`
-	Transactions      []ListTransactionItem `json:"transactions"`
-	PageSize          int                   `json:"page_size"`
-	ScannedFromHeight int64                 `json:"scanned_from_height"`
-	ScannedToHeight   int64                 `json:"scanned_to_height"`
-	NextBeforeHeight  *int64                `json:"next_before_height,omitempty"`
+	// Pubkey is the normalized 32-byte x-only public key hex the transactions are filtered by.
+	Pubkey string `json:"pubkey"`
+	// Transactions is the page of decoded transactions involving Pubkey, ordered newest-first.
+	Transactions []ListTransactionItem `json:"transactions"`
+	// PageSize is the maximum number of transactions the caller asked the scanner to collect.
+	PageSize int `json:"page_size"`
+	// ScannedFromHeight is the highest block height included in this scan (inclusive).
+	ScannedFromHeight int64 `json:"scanned_from_height"`
+	// ScannedToHeight is the lowest block height included in this scan (inclusive).
+	ScannedToHeight int64 `json:"scanned_to_height"`
+	// NextBeforeHeight is the cursor to pass as BeforeHeight on the next call; nil once genesis is reached.
+	NextBeforeHeight *int64 `json:"next_before_height,omitempty"`
 }
 
 // AddressTransactionsOptions configures AddressService.Transactions
@@ -111,8 +132,10 @@ func (s *AddressService) Transactions(ctx context.Context, address string, opts 
 
 // BalanceResponse is returned by AddressService.Balance.
 type BalanceResponse struct {
-	Pubkey     string `json:"pubkey"`
-	BalanceSat int64  `json:"balance_sat"`
+	// Pubkey is the normalized 32-byte x-only public key hex whose balance is reported.
+	Pubkey string `json:"pubkey"`
+	// BalanceSat is the total unspent balance in satoshis owned by Pubkey.
+	BalanceSat int64 `json:"balance_sat"`
 }
 
 // Balance returns the total unspent balance for address in satoshis.
@@ -127,8 +150,11 @@ func (s *AddressService) Balance(ctx context.Context, address string) (*BalanceR
 
 // NonceResponse is returned by AddressService.Nonce.
 type NonceResponse struct {
-	Address   string `json:"address"`
-	Nonce     uint64 `json:"nonce"`
+	// Address is the normalized public key hex the nonce was looked up for.
+	Address string `json:"address"`
+	// Nonce is the last used transaction nonce for Address.
+	Nonce uint64 `json:"nonce"`
+	// NextNonce is the nonce the next transaction from Address should use (Nonce+1).
 	NextNonce uint64 `json:"next_nonce"`
 }
 
@@ -145,9 +171,12 @@ func (s *AddressService) Nonce(ctx context.Context, address string) (*NonceRespo
 
 // MempoolByAddressResponse is returned by AddressService.Mempool.
 type MempoolByAddressResponse struct {
-	Pubkey       string                `json:"pubkey"`
+	// Pubkey is the normalized 32-byte x-only public key hex the mempool is filtered by.
+	Pubkey string `json:"pubkey"`
+	// Transactions is the list of matching pending transactions.
 	Transactions []ListTransactionItem `json:"transactions"`
-	Count        int                   `json:"count"`
+	// Count is the number of entries returned in Transactions.
+	Count int `json:"count"`
 }
 
 // Mempool returns pending (unconfirmed) transactions crediting address or

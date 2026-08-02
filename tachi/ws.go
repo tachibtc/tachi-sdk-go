@@ -18,34 +18,48 @@ type WSService service
 // can watch multiple filters at once.
 type WSEvent struct {
 	// Event is "tx", "block", "validator", or "breach".
-	Event     string            `json:"event"`
-	Tx        *WSTxAlert        `json:"tx,omitempty"`
-	Block     *WSBlockAlert     `json:"block,omitempty"`
+	Event string `json:"event"`
+	// Tx is set when Event == "tx".
+	Tx *WSTxAlert `json:"tx,omitempty"`
+	// Block is set when Event == "block".
+	Block *WSBlockAlert `json:"block,omitempty"`
+	// Validator is set when Event == "validator".
 	Validator *WSValidatorAlert `json:"validator,omitempty"`
-	Breach    *WSBreachAlert    `json:"breach,omitempty"`
+	// Breach is set when Event == "breach".
+	Breach *WSBreachAlert `json:"breach,omitempty"`
 }
 
 // WSTxAlert is pushed when a tx (pending or committed) matches an
 // address/vault subscription.
 type WSTxAlert struct {
+	// TxHash is the hex-encoded hash of the matching transaction.
 	TxHash string `json:"tx_hash"`
-	Type   string `json:"type"`
+	// Type is transfer/deposit/withdraw/lock/unlock/vault_open/
+	// vault_state_advance/vault_close/vault_breach/unknown.
+	Type string `json:"type"`
 	// State is "pending" (seen via CheckTx) or "committed".
-	State  string `json:"state"`
-	Height int64  `json:"height,omitempty"`
+	State string `json:"state"`
+	// Height is the block height that committed the transaction; 0/omitted while State is "pending".
+	Height int64 `json:"height,omitempty"`
 	// VaultAddress is set only when the alert matched on a vault subscription.
-	VaultAddress string   `json:"vault_address,omitempty"`
-	Vout         []TxVout `json:"vout"`
+	VaultAddress string `json:"vault_address,omitempty"`
+	// Vout lists the transaction's outputs.
+	Vout []TxVout `json:"vout"`
 }
 
 // WSValidatorAlert is pushed to "validators" subscribers when a new
 // validator registers.
 type WSValidatorAlert struct {
+	// PubKeyHex is the compressed secp256k1 public key of the joining validator.
 	PubKeyHex string `json:"pub_key_hex"`
-	PeerID    string `json:"peer_id,omitempty"`
-	Host      string `json:"host,omitempty"`
-	RPCAddr   string `json:"rpc_addr,omitempty"`
-	Total     int    `json:"total"`
+	// PeerID is the joining validator's libp2p peer identifier.
+	PeerID string `json:"peer_id,omitempty"`
+	// Host is the joining validator's CometBFT P2P address "host:port".
+	Host string `json:"host,omitempty"`
+	// RPCAddr is the joining validator's daemon RPC listen address.
+	RPCAddr string `json:"rpc_addr,omitempty"`
+	// Total is the registry size immediately after this join.
+	Total int `json:"total"`
 }
 
 // WSBreachAlert is pushed to "vaultId" subscribers when the watchtower
@@ -53,23 +67,36 @@ type WSValidatorAlert struct {
 // classification (legitimate/stale/anomalous) is delivered, same
 // population as WatchtowerService.Receipts.
 type WSBreachAlert struct {
-	VaultID        string `json:"vault_id"`
+	// VaultID is the hex VaultID whose funding outpoint was spent.
+	VaultID string `json:"vault_id"`
+	// BroadcastState is the state decoded from the spending tx's hint.
 	BroadcastState uint64 `json:"broadcast_state"`
-	LatestState    uint64 `json:"latest_state"`
+	// LatestState is the BFT-replicated latest state at detection.
+	LatestState uint64 `json:"latest_state"`
+	// Classification is "legitimate", "stale", or "anomalous".
 	Classification string `json:"classification"`
-	SpendTxID      string `json:"spend_txid"`
-	SpendVout      uint32 `json:"spend_vout"`
-	DetectedHeight int64  `json:"detected_height"`
-	DetectedAt     int64  `json:"detected_at"`
+	// SpendTxID is the L1 txid that spent the funding outpoint.
+	SpendTxID string `json:"spend_txid"`
+	// SpendVout is the funding output index that was consumed.
+	SpendVout uint32 `json:"spend_vout"`
+	// DetectedHeight is the L1 block height the spend was observed at.
+	DetectedHeight int64 `json:"detected_height"`
+	// DetectedAt is the node's wall-clock unix timestamp at detection.
+	DetectedAt int64 `json:"detected_at"`
 }
 
 // WSBlockAlert is pushed to "blocks" subscribers for every
 // durably-committed block.
 type WSBlockAlert struct {
-	Height      int64   `json:"height"`
-	BlockHash   string  `json:"block_hash"`
-	AppHash     string  `json:"app_hash"`
-	TxCount     int     `json:"tx_count"`
+	// Height is the committed block height.
+	Height int64 `json:"height"`
+	// BlockHash is the hex-encoded committing block hash.
+	BlockHash string `json:"block_hash"`
+	// AppHash is the hex-encoded ABCI app hash for this block.
+	AppHash string `json:"app_hash"`
+	// TxCount is the number of transactions included in this block.
+	TxCount int `json:"tx_count"`
+	// EpochClosed is the epoch ID this block closed; omitted for blocks that didn't close an epoch.
 	EpochClosed *uint32 `json:"epoch_closed,omitempty"`
 }
 
@@ -97,9 +124,13 @@ func (o SubscribeOptions) empty() bool {
 // close terminates the read loop, closes the Events channel, and is
 // reported once on Err(). Callers must call Close when done.
 type WSConn struct {
-	conn      *websocket.Conn
-	events    chan WSEvent
-	errc      chan error
+	// conn is the underlying websocket connection.
+	conn *websocket.Conn
+	// events delivers incoming alerts to the caller; closed when the read loop exits.
+	events chan WSEvent
+	// errc carries at most one error from an abnormal read-loop exit.
+	errc chan error
+	// closeOnce ensures Close only closes conn once, even if called concurrently.
 	closeOnce sync.Once
 }
 

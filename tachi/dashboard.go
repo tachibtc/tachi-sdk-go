@@ -11,21 +11,32 @@ type DashboardService service
 
 // StatsResponse is returned by DashboardService.Stats.
 type StatsResponse struct {
-	Height            int64  `json:"height"`
-	TotalTransactions int    `json:"total_transactions"`
-	TotalAccounts     int    `json:"total_accounts"`
-	CurrentEpoch      uint32 `json:"current_epoch"`
-	NodeCount         int    `json:"node_count"`
-	ChainID           string `json:"chain_id"`
-	LatestBlockTime   *int64 `json:"latest_block_time,omitempty"`
-	TotalSupplySat    int64  `json:"total_supply_sat"`
-	VTXOCount         int    `json:"vtxo_count"`
+	// Height is the latest committed block height reported by the ABCI app.
+	Height int64 `json:"height"`
+	// TotalTransactions is the cumulative count of transactions across all epoch commits.
+	TotalTransactions int `json:"total_transactions"`
+	// TotalAccounts is the number of distinct accounts; currently always 0 pending an ABCI owner-count path.
+	TotalAccounts int `json:"total_accounts"`
+	// CurrentEpoch is the currently open epoch ID.
+	CurrentEpoch uint32 `json:"current_epoch"`
+	// NodeCount is the number of validator nodes known via KDHT, plus self.
+	NodeCount int `json:"node_count"`
+	// ChainID identifies the chain (mirrors CometBFT's node_info.network).
+	ChainID string `json:"chain_id"`
+	// LatestBlockTime is the unix-seconds timestamp of the latest block; omitted when unknown.
+	LatestBlockTime *int64 `json:"latest_block_time,omitempty"`
+	// TotalSupplySat is the total circulating supply in satoshis (sum of unspent VTXO amounts).
+	TotalSupplySat int64 `json:"total_supply_sat"`
+	// VTXOCount is the total number of unspent VTXOs across the chain.
+	VTXOCount int `json:"vtxo_count"`
 }
 
 // SupplyResponse is returned by DashboardService.Supply.
 type SupplyResponse struct {
+	// TotalSupplySat is the total circulating supply in satoshis (sum of all unspent VTXO amounts).
 	TotalSupplySat int64 `json:"total_supply_sat"`
-	VTXOCount      int   `json:"vtxo_count"`
+	// VTXOCount is the total number of unspent VTXOs across the chain.
+	VTXOCount int `json:"vtxo_count"`
 }
 
 // SearchResponse is returned by DashboardService.Search. Type is one of
@@ -35,7 +46,9 @@ type SupplyResponse struct {
 // target type (a map for "block"/"address", GetEpochResponse,
 // GetTransactionResponse, etc).
 type SearchResponse struct {
-	Type   string          `json:"type"`
+	// Type is the kind of entity Result matched: one of "block", "epoch", "tx", "vtxo", or "address".
+	Type string `json:"type"`
+	// Result is the matching entity payload; its shape depends on Type.
 	Result json.RawMessage `json:"result"`
 }
 

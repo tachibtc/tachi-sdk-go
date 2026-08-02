@@ -44,8 +44,10 @@ var defaultUserAgent = "daemon-go-sdk/" + Version
 // with NewClient; the zero value is not usable. A Client is safe for
 // concurrent use.
 type Client struct {
+	// clientMu guards client against concurrent WithHTTPClient-style mutation; unused post-construction today, kept for future runtime reconfiguration.
 	clientMu sync.Mutex
-	client   *http.Client
+	// client is the underlying HTTP transport every request is sent through.
+	client *http.Client
 
 	// BaseURL is the root of every request, e.g.
 	// "https://rpc-regtest.tachibtc.com/" or "http://127.0.0.1:26670/".
@@ -70,24 +72,38 @@ type Client struct {
 	// type-converted pointer to this same struct.
 	common service
 
-	Address    *AddressService
-	Block      *BlockService
-	Epoch      *EpochService
-	Tx         *TxService
-	VTXO       *VTXOService
-	Vault      *VaultService
+	// Address groups account-scoped endpoints: balance, nonce, VTXOs, transaction history, and pending mempool activity.
+	Address *AddressService
+	// Block groups block-lookup endpoints, including the bitcoind-analogue getblockhash/getblockheader/getblock routes.
+	Block *BlockService
+	// Epoch groups epoch-lookup endpoints.
+	Epoch *EpochService
+	// Tx groups transaction endpoints: lookup, decode/validate, broadcast, mempool, and fee estimation.
+	Tx *TxService
+	// VTXO groups VTXO-lookup endpoints.
+	VTXO *VTXOService
+	// Vault groups vault-lookup endpoints.
+	Vault *VaultService
+	// Validators groups the bootstrap validator registry and this node's own peer info.
 	Validators *ValidatorsService
-	Node       *NodeService
-	Dashboard  *DashboardService
-	Bitcoin    *BitcoinService
-	Sign       *SignService
+	// Node groups liveness, node-info, and raw CometBFT-proxy endpoints.
+	Node *NodeService
+	// Dashboard groups network-overview endpoints: stats, supply, and search.
+	Dashboard *DashboardService
+	// Bitcoin wraps the daemon's pass-through Bitcoin Core JSON-RPC proxy (POST /).
+	Bitcoin *BitcoinService
+	// Sign wraps the cooperative-refund threshold-signing ceremony.
+	Sign *SignService
+	// Watchtower groups the vault watchtower's status and breach-receipt endpoints.
 	Watchtower *WatchtowerService
-	WS         *WSService
+	// WS opens live websocket subscriptions for chain alerts.
+	WS *WSService
 }
 
 // service is the shared base type every *Service is aliased from; it gives
 // each service a back-reference to the owning Client.
 type service struct {
+	// client is the owning Client, used to issue requests on the service's behalf.
 	client *Client
 }
 
@@ -204,6 +220,7 @@ func (c *Client) NewRequest(method, path string, query url.Values, body interfac
 // mirroring the shape used by most official Go API clients so callers can
 // inspect status/headers alongside the decoded result.
 type Response struct {
+	// Response is the raw HTTP response the service method received.
 	*http.Response
 }
 
@@ -267,8 +284,10 @@ func (c *Client) post(ctx context.Context, path string, body, out interface{}) (
 // status. The daemon's error bodies are plain text (http.Error), not
 // JSON, so Message carries the raw response body.
 type ErrorResponse struct {
+	// Response is the raw non-2xx HTTP response that triggered this error.
 	Response *http.Response
-	Message  string
+	// Message is the daemon's plain-text error body (http.Error), trimmed of surrounding whitespace.
+	Message string
 }
 
 func (r *ErrorResponse) Error() string {

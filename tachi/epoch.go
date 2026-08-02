@@ -20,9 +20,11 @@ type GetEpochResponse struct {
 	// Status is "open" or "closed".
 	Status string `json:"status"`
 	// Timestamp is unix seconds at epoch close; nil for open epochs.
-	Timestamp *int64   `json:"timestamp"`
-	TxCount   int      `json:"tx_count"`
-	TxHashes  []string `json:"tx_hashes"`
+	Timestamp *int64 `json:"timestamp"`
+	// TxCount is the number of transactions committed within this epoch.
+	TxCount int `json:"tx_count"`
+	// TxHashes is the list of 64-char hex transaction hashes included in this epoch.
+	TxHashes []string `json:"tx_hashes"`
 }
 
 // Get returns a Tachi-decoded view of the epoch with the given sequential
@@ -51,11 +53,16 @@ func (s *EpochService) ByHash(ctx context.Context, hash string) (*GetEpochRespon
 
 // ListEpochsResponse is returned by EpochService.List.
 type ListEpochsResponse struct {
-	Epochs     []GetEpochResponse `json:"epochs"`
-	Total      int                `json:"total"`
-	Page       int                `json:"page"`
-	PageSize   int                `json:"page_size"`
-	TotalPages int                `json:"total_pages"`
+	// Epochs is the page of epochs returned, ordered latest-first by EpochID.
+	Epochs []GetEpochResponse `json:"epochs"`
+	// Total is the total number of epochs known to the chain (current_epoch + 1).
+	Total int `json:"total"`
+	// Page is the 1-based page number the caller requested.
+	Page int `json:"page"`
+	// PageSize is the maximum number of epochs returned per page (capped at 100).
+	PageSize int `json:"page_size"`
+	// TotalPages is the total number of pages available for the current PageSize.
+	TotalPages int `json:"total_pages"`
 }
 
 // List returns a paginated list of all epochs from latest to oldest with

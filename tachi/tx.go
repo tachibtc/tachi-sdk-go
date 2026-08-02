@@ -22,20 +22,33 @@ type GetTransactionResponse struct {
 	// vault_state_advance/vault_close/vault_breach/unknown.
 	Type string `json:"type"`
 	// State is committed/pending/failed.
-	State     string            `json:"state"`
-	Status    TxStatus          `json:"status"`
-	Epoch     *uint32           `json:"epoch"`
-	Vin       []TxVin           `json:"vin"`
-	Vout      []TxVout          `json:"vout"`
-	Size      int               `json:"size"`
-	IsSegwit  bool              `json:"is_segwit"`
-	Weight    int               `json:"weight"`
-	VSize     int               `json:"vsize"`
-	Version   uint8             `json:"version"`
-	Hex       string            `json:"hex"`
-	BlockHash *string           `json:"blockhash"`
-	Time      *int64            `json:"time"`
-	HAT       *HATProofResponse `json:"hat,omitempty"`
+	State string `json:"state"`
+	// Status is the raw ABCI {code, log} pair describing tx execution.
+	Status TxStatus `json:"status"`
+	// Epoch is the epoch ID the committing block belongs to; nil for mempool/pending txs.
+	Epoch *uint32 `json:"epoch"`
+	// Vin lists the VTXO inputs being spent by this transaction.
+	Vin []TxVin `json:"vin"`
+	// Vout lists the VTXO outputs produced by this transaction.
+	Vout []TxVout `json:"vout"`
+	// Size is the byte length of the raw transaction bytes.
+	Size int `json:"size"`
+	// IsSegwit reports whether any input carries witness data (a non-empty SigScript).
+	IsSegwit bool `json:"is_segwit"`
+	// Weight is the Bitcoin-style segwit weight: 3*baseSize + totalSize.
+	Weight int `json:"weight"`
+	// VSize is the Bitcoin-style virtual size: ceil(Weight/4).
+	VSize int `json:"vsize"`
+	// Version is the TachiTx protocol version byte.
+	Version uint8 `json:"version"`
+	// Hex is the hex-encoded raw transaction bytes.
+	Hex string `json:"hex"`
+	// BlockHash is the hex-encoded committing block hash; nil for mempool/pending txs.
+	BlockHash *string `json:"blockhash"`
+	// Time is the unix-seconds timestamp of the committing block; nil for mempool/pending txs.
+	Time *int64 `json:"time"`
+	// HAT is the HAT commitment for the VTXO spent by this tx's first input; populated only via TxOptions.HAT.
+	HAT *HATProofResponse `json:"hat,omitempty"`
 	// RIP is the raw JSON-encoded recursive inclusion proof; populated only
 	// when requested via TxOptions.RIP. Decode with json.Unmarshal into a
 	// caller-defined struct.
@@ -46,52 +59,80 @@ type GetTransactionResponse struct {
 // height-cursor based: pass NextBeforeHeight as the BeforeHeight of the
 // next call; nil once genesis is reached.
 type ListTransactionsResponse struct {
-	Transactions      []ListTransactionItem `json:"transactions"`
-	PageSize          int                   `json:"page_size"`
-	ScannedFromHeight int64                 `json:"scanned_from_height"`
-	ScannedToHeight   int64                 `json:"scanned_to_height"`
-	NextBeforeHeight  *int64                `json:"next_before_height,omitempty"`
+	// Transactions is the page of committed transactions, ordered newest-first by block height.
+	Transactions []ListTransactionItem `json:"transactions"`
+	// PageSize is the maximum number of transactions the caller asked the scanner to collect.
+	PageSize int `json:"page_size"`
+	// ScannedFromHeight is the highest block height included in this scan (inclusive).
+	ScannedFromHeight int64 `json:"scanned_from_height"`
+	// ScannedToHeight is the lowest block height included in this scan (inclusive).
+	ScannedToHeight int64 `json:"scanned_to_height"`
+	// NextBeforeHeight is the cursor to pass as BeforeHeight on the next call; nil once genesis is reached.
+	NextBeforeHeight *int64 `json:"next_before_height,omitempty"`
 }
 
 // GetRawTransactionResponse is returned by TxService.Raw.
 type GetRawTransactionResponse struct {
+	// TxHash is the hex-encoded tmhash of the raw transaction bytes.
 	TxHash string `json:"txHash"`
-	Hex    string `json:"hex"`
+	// Hex is the hex-encoded raw transaction bytes.
+	Hex string `json:"hex"`
 }
 
 // TxDecodeResponse is returned by TxService.Decode.
 type TxDecodeResponse struct {
-	TxHash   string   `json:"tx_hash"`
-	Type     string   `json:"type"`
-	Version  uint8    `json:"version"`
-	Fee      int64    `json:"fee"`
-	Nonce    uint64   `json:"nonce"`
-	Size     int      `json:"size"`
-	IsSegwit bool     `json:"is_segwit"`
-	Weight   int      `json:"weight"`
-	VSize    int      `json:"vsize"`
-	Vin      []TxVin  `json:"vin"`
-	Vout     []TxVout `json:"vout"`
-	PubKey   string   `json:"pubkey"`
+	// TxHash is the hex-encoded tmhash of the raw transaction bytes.
+	TxHash string `json:"tx_hash"`
+	// Type is transfer/deposit/withdraw/lock/unlock/vault_open/
+	// vault_state_advance/vault_close/vault_breach/unknown.
+	Type string `json:"type"`
+	// Version is the TachiTx protocol version byte.
+	Version uint8 `json:"version"`
+	// Fee is the fee paid by the transaction in satoshis.
+	Fee int64 `json:"fee"`
+	// Nonce is the sender's transaction nonce as committed by the signer.
+	Nonce uint64 `json:"nonce"`
+	// Size is the byte length of the decoded raw transaction.
+	Size int `json:"size"`
+	// IsSegwit reports whether any input carries witness data (a non-empty SigScript).
+	IsSegwit bool `json:"is_segwit"`
+	// Weight is the Bitcoin-style segwit weight: 3*baseSize + totalSize.
+	Weight int `json:"weight"`
+	// VSize is the Bitcoin-style virtual size: ceil(Weight/4).
+	VSize int `json:"vsize"`
+	// Vin lists the VTXO inputs being spent by this transaction.
+	Vin []TxVin `json:"vin"`
+	// Vout lists the VTXO outputs produced by this transaction.
+	Vout []TxVout `json:"vout"`
+	// PubKey is the hex-encoded signer public key authorizing the transaction.
+	PubKey string `json:"pubkey"`
 }
 
 // TxValidateResponse is returned by TxService.Validate.
 type TxValidateResponse struct {
-	Valid bool   `json:"valid"`
-	Code  uint32 `json:"code"`
-	Log   string `json:"log"`
+	// Valid is true when CometBFT CheckTx returned code 0 (transaction is acceptable).
+	Valid bool `json:"valid"`
+	// Code is the raw ABCI CheckTx response code; non-zero indicates rejection.
+	Code uint32 `json:"code"`
+	// Log is the human-readable CheckTx log message explaining acceptance or rejection.
+	Log string `json:"log"`
 }
 
 // MempoolResponse is returned by TxService.Mempool.
 type MempoolResponse struct {
+	// Transactions is the list of decoded pending transactions currently in the CometBFT unconfirmed mempool.
 	Transactions []ListTransactionItem `json:"transactions"`
-	Count        int                   `json:"count"`
+	// Count is the number of pending transactions returned.
+	Count int `json:"count"`
 }
 
 // FeeEstimateResponse is returned by TxService.FeeEstimate.
 type FeeEstimateResponse struct {
-	MinFeeSat         int64 `json:"min_fee_sat"`
-	AvgFeeSat         int64 `json:"avg_fee_sat"`
+	// MinFeeSat is the minimum acceptable fee in satoshis (currently a flat floor of 1).
+	MinFeeSat int64 `json:"min_fee_sat"`
+	// AvgFeeSat is the mean fee in satoshis across recently scanned blocks.
+	AvgFeeSat int64 `json:"avg_fee_sat"`
+	// RecommendedFeeSat is the suggested fee to use for a new transaction, derived from recent activity.
 	RecommendedFeeSat int64 `json:"recommended_fee_sat"`
 }
 
@@ -100,9 +141,11 @@ type TxOptions struct {
 	// HAT attaches the HAT commitment for the tx's first spent VTXO.
 	HAT bool
 	// RIP attaches a RIP inclusion proof; requires OriginEpoch and FinalEpoch.
-	RIP         bool
+	RIP bool
+	// OriginEpoch is the epoch the HAT was inserted into (required when RIP is true).
 	OriginEpoch uint32
-	FinalEpoch  uint32
+	// FinalEpoch is the L1-settled epoch to chain the proof up to (required when RIP is true).
+	FinalEpoch uint32
 }
 
 // Get returns a Tachi-decoded view of a transaction by its 40-char hex

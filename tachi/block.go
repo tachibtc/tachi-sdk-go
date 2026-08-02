@@ -13,11 +13,17 @@ type BlockService service
 // BlockResponse is returned by BlockService.Get, BlockService.ByHeight, and
 // BlockService.ByHash.
 type BlockResponse struct {
-	Height       int64                 `json:"height"`
-	Hash         string                `json:"hash"`
-	Time         *int64                `json:"time,omitempty"`
-	Epoch        uint32                `json:"epoch"`
-	TxCount      int                   `json:"tx_count"`
+	// Height is the block height described by this response.
+	Height int64 `json:"height"`
+	// Hash is the hex-encoded CometBFT block hash.
+	Hash string `json:"hash"`
+	// Time is the unix-seconds timestamp of the block header; omitted if unknown.
+	Time *int64 `json:"time,omitempty"`
+	// Epoch is the epoch ID this block belongs to, derived from height and epochBlocks.
+	Epoch uint32 `json:"epoch"`
+	// TxCount is the number of decoded transactions contained in this block.
+	TxCount int `json:"tx_count"`
+	// Transactions is the list of decoded transactions in this block.
 	Transactions []ListTransactionItem `json:"transactions"`
 }
 
@@ -34,20 +40,30 @@ func (s *BlockService) Get(ctx context.Context, height int64) (*BlockResponse, *
 
 // BlockSummary is a lightweight block for the BlockService.List view.
 type BlockSummary struct {
-	Height  int64  `json:"height"`
-	Hash    string `json:"hash"`
-	Time    *int64 `json:"time,omitempty"`
-	TxCount int    `json:"tx_count"`
-	Epoch   uint32 `json:"epoch"`
+	// Height is the block height of this summary entry.
+	Height int64 `json:"height"`
+	// Hash is the hex-encoded CometBFT block hash.
+	Hash string `json:"hash"`
+	// Time is the unix-seconds timestamp of the block header; omitted if unknown.
+	Time *int64 `json:"time,omitempty"`
+	// TxCount is the number of transactions contained in the block.
+	TxCount int `json:"tx_count"`
+	// Epoch is the epoch ID this block belongs to, derived from height and epochBlocks.
+	Epoch uint32 `json:"epoch"`
 }
 
 // ListBlocksResponse is returned by BlockService.List.
 type ListBlocksResponse struct {
-	Blocks     []BlockSummary `json:"blocks"`
-	Total      int64          `json:"total"`
-	Page       int            `json:"page"`
-	PageSize   int            `json:"page_size"`
-	TotalPages int            `json:"total_pages"`
+	// Blocks is the page of block summaries, ordered newest-first.
+	Blocks []BlockSummary `json:"blocks"`
+	// Total is the latest block height, used as the total block count for pagination.
+	Total int64 `json:"total"`
+	// Page is the 1-based page number the caller requested.
+	Page int `json:"page"`
+	// PageSize is the maximum number of blocks returned per page (capped at 100).
+	PageSize int `json:"page_size"`
+	// TotalPages is the total number of pages available for the current PageSize.
+	TotalPages int `json:"total_pages"`
 }
 
 // List returns a paginated list of blocks from latest to oldest with tx
@@ -71,8 +87,10 @@ func (s *BlockService) List(ctx context.Context, page, pageSize int) (*ListBlock
 
 // GetBlockHashResponse is returned by BlockService.Hash.
 type GetBlockHashResponse struct {
-	Height int64  `json:"height"`
-	Hash   string `json:"hash"`
+	// Height is the height the hash was requested for.
+	Height int64 `json:"height"`
+	// Hash is the hex-encoded CometBFT block hash at Height.
+	Hash string `json:"hash"`
 }
 
 // Hash returns the Tachi chain's block hash at height — the Tachi-chain
@@ -90,11 +108,16 @@ func (s *BlockService) Hash(ctx context.Context, height int64) (*GetBlockHashRes
 // GetBlockHeaderResponse is returned by BlockService.HeaderByHeight and
 // BlockService.HeaderByHash.
 type GetBlockHeaderResponse struct {
-	Height   int64  `json:"height"`
-	Hash     string `json:"hash"`
+	// Height is the block height.
+	Height int64 `json:"height"`
+	// Hash is the hex-encoded CometBFT block hash.
+	Hash string `json:"hash"`
+	// PrevHash is the hex-encoded hash of the preceding block ("" for the genesis block).
 	PrevHash string `json:"prev_hash"`
-	Time     int64  `json:"time"`
-	Epoch    uint32 `json:"epoch"`
+	// Time is the unix-seconds timestamp of the block header.
+	Time int64 `json:"time"`
+	// Epoch is the epoch ID this block belongs to, derived from height and epochBlocks.
+	Epoch uint32 `json:"epoch"`
 }
 
 // HeaderByHeight returns Tachi chain block header metadata (no transaction

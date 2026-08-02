@@ -11,30 +11,45 @@ type VaultService service
 
 // VaultListItem is a compact per-vault view returned by VaultService.List.
 type VaultListItem struct {
-	VaultID        string `json:"vault_id"` // hex VaultID = H(funding_txid || vout)
-	State          string `json:"state"`
+	// VaultID is the hex VaultID = H(funding_txid || vout).
+	VaultID string `json:"vault_id"`
+	// State is the vault lifecycle label (always "open" today).
+	State string `json:"state"`
+	// LatestStateNum is the vault's latest state number (always 0 today).
 	LatestStateNum uint64 `json:"latest_state_num"`
-	FundingTxid    string `json:"funding_txid"`
-	FundingVout    uint32 `json:"funding_vout"`
-	Address        string `json:"address"` // bech32m P2TR vault address
+	// FundingTxid is the hex L1 funding transaction id.
+	FundingTxid string `json:"funding_txid"`
+	// FundingVout is the L1 funding output index.
+	FundingVout uint32 `json:"funding_vout"`
+	// Address is the bech32m P2TR vault address; the ?vault= websocket filter key.
+	Address string `json:"address"`
 	// CSVDelay, Threshold, QuorumKeyset, and UserKey are the vault's
 	// reconstruction parameters. Only populated when the Client was
 	// created with WithAPIKey using a valid master key or a client key
 	// registered with the vault scope; omitted otherwise.
-	CSVDelay     uint32   `json:"csv_delay,omitempty"`
-	Threshold    int      `json:"threshold,omitempty"`
+	CSVDelay uint32 `json:"csv_delay,omitempty"`
+	// Threshold is the number of quorum signatures required to authorize a spend.
+	Threshold int `json:"threshold,omitempty"`
+	// QuorumKeyset is the list of quorum member public keys.
 	QuorumKeyset []string `json:"quorum_keyset,omitempty"`
-	UserKey      string   `json:"user_key,omitempty"`
+	// UserKey is the vault owner's public key.
+	UserKey string `json:"user_key,omitempty"`
 }
 
 // ListVaultsResponse is returned by VaultService.List.
 type ListVaultsResponse struct {
-	User       string          `json:"user"`
-	Vaults     []VaultListItem `json:"vaults"`
-	Total      int             `json:"total"`
-	Page       int             `json:"page"`
-	PageSize   int             `json:"page_size"`
-	TotalPages int             `json:"total_pages"`
+	// User is the normalized 32-byte x-only pubkey (hex) the vaults are owned by.
+	User string `json:"user"`
+	// Vaults is the requested page of vaults owned by User.
+	Vaults []VaultListItem `json:"vaults"`
+	// Total is the total number of vaults User owns across all pages.
+	Total int `json:"total"`
+	// Page is the 1-based page number returned.
+	Page int `json:"page"`
+	// PageSize is the maximum entries per page.
+	PageSize int `json:"page_size"`
+	// TotalPages is the total number of pages available at the current PageSize.
+	TotalPages int `json:"total_pages"`
 }
 
 // List returns a paginated list of vaults owned by user (a public key or

@@ -27,50 +27,68 @@ const registerSigDomain = "tachi-register-v1"
 // ValidatorInfo represents a registered validator, and is also the shape
 // returned by ValidatorsService.PeerInfo for the local node.
 type ValidatorInfo struct {
-	PeerID    string `json:"peer_id"`
+	// PeerID is the libp2p peer identifier used by the discovery overlay.
+	PeerID string `json:"peer_id"`
+	// PubKeyHex is the compressed secp256k1 validator public key hex used for signed registration.
 	PubKeyHex string `json:"pub_key_hex"`
-	Host      string `json:"host,omitempty"`
-	P2PPort   int    `json:"p2p_port,omitempty"`
-	RPCAddr   string `json:"rpc_addr,omitempty"`
+	// Host is the CometBFT P2P address "host:port" the validator listens on.
+	Host string `json:"host,omitempty"`
+	// P2PPort is the CometBFT P2P listening port advertised by the validator.
+	P2PPort int `json:"p2p_port,omitempty"`
+	// RPCAddr is the daemon RPC listen address ("host:port") this validator serves.
+	RPCAddr string `json:"rpc_addr,omitempty"`
 }
 
 // RegisterRequest is the ValidatorsService.Register body. Build one with
 // SignRegisterRequest, which fills Timestamp and Signature.
 type RegisterRequest struct {
 	ValidatorInfo
-	Timestamp int64  `json:"timestamp"`
+	// Timestamp is the unix-seconds time at which the request was signed; checked against a freshness window.
+	Timestamp int64 `json:"timestamp"`
+	// Signature is the BIP-340 Schnorr signature (128-char hex) over the canonical register digest.
 	Signature string `json:"signature"`
 }
 
 // RegisterResponse is returned by ValidatorsService.Register.
 type RegisterResponse struct {
+	// Status is a fixed acknowledgement string ("registered") confirming a successful registration.
 	Status string `json:"status" example:"registered"`
-	Total  int    `json:"total" example:"3"`
+	// Total is the new total number of validators in the registry after this registration.
+	Total int `json:"total" example:"3"`
 }
 
 // ValidatorsResponse is returned by ValidatorsService.List.
 type ValidatorsResponse struct {
+	// Validators is the merged list of bootstrap-registered and KDHT-discovered validators.
 	Validators []ValidatorInfo `json:"validators"`
-	Count      int             `json:"count" example:"3"`
+	// Count is the total number of validators in the response.
+	Count int `json:"count" example:"3"`
 }
 
 // LiveValidatorsResponse is returned by ValidatorsService.Live.
 type LiveValidatorsResponse struct {
+	// Validators is the subset of validators whose peers are currently connected via the overlay network.
 	Validators []ValidatorInfo `json:"validators"`
-	Count      int             `json:"count" example:"2"`
-	TotalKnown int             `json:"total_known" example:"3"`
+	// Count is the number of live validators returned.
+	Count int `json:"count" example:"2"`
+	// TotalKnown is the total number of validators known to the node (live plus offline).
+	TotalKnown int `json:"total_known" example:"3"`
 }
 
 // ValidatorCountResponse is returned by ValidatorsService.Count.
 type ValidatorCountResponse struct {
+	// Count is the number of validators currently in the bootstrap registry.
 	Count int `json:"count" example:"3"`
 }
 
 // ReadyResponse is returned by ValidatorsService.Ready.
 type ReadyResponse struct {
-	Ready      bool            `json:"ready" example:"true"`
+	// Ready is true once the registry has reached the expected validator count before the long-poll deadline.
+	Ready bool `json:"ready" example:"true"`
+	// Validators is the current bootstrap registry snapshot at the time the long-poll returned.
 	Validators []ValidatorInfo `json:"validators"`
-	Count      int             `json:"count" example:"2"`
+	// Count is the number of validators in Validators.
+	Count int `json:"count" example:"2"`
 }
 
 // List returns the merged list of bootstrap-registered and

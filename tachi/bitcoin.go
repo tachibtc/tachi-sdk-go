@@ -12,7 +12,9 @@ type BitcoinService service
 
 // BitcoinRPCError describes an error returned by bitcoind.
 type BitcoinRPCError struct {
-	Code    int    `json:"code" example:"-8"`
+	// Code is the bitcoind JSON-RPC error code (negative integers per bitcoind convention).
+	Code int `json:"code" example:"-8"`
+	// Message is the human-readable error description from bitcoind.
 	Message string `json:"message" example:"invalid parameter"`
 }
 
@@ -23,9 +25,12 @@ func (e *BitcoinRPCError) Error() string {
 // BitcoinRPCResponse is the JSON-RPC 1.0 envelope returned by POST / (the
 // bitcoind proxy).
 type BitcoinRPCResponse struct {
-	Result json.RawMessage  `json:"result" swaggertype:"object"`
-	Error  *BitcoinRPCError `json:"error"`
-	ID     string           `json:"id" example:"1"`
+	// Result is the raw JSON result body from bitcoind; nil when an error occurred.
+	Result json.RawMessage `json:"result" swaggertype:"object"`
+	// Error carries the bitcoind error payload when the call failed; nil on success.
+	Error *BitcoinRPCError `json:"error"`
+	// ID echoes back the caller-supplied request identifier.
+	ID string `json:"id" example:"1"`
 }
 
 // RPC forwards a JSON-RPC 1.0 request to the daemon's configured bitcoind
@@ -53,10 +58,14 @@ func (s *BitcoinService) RPC(ctx context.Context, method string, params interfac
 	}
 
 	req := struct {
-		JSONRPC string          `json:"jsonrpc"`
-		ID      string          `json:"id"`
-		Method  string          `json:"method"`
-		Params  json.RawMessage `json:"params"`
+		// JSONRPC is the JSON-RPC protocol version, fixed at "1.0" for bitcoind compatibility.
+		JSONRPC string `json:"jsonrpc"`
+		// ID is the caller-chosen request identifier echoed back in the response.
+		ID string `json:"id"`
+		// Method is the bitcoind RPC method name to invoke.
+		Method string `json:"method"`
+		// Params is the raw JSON parameter array forwarded unchanged to bitcoind.
+		Params json.RawMessage `json:"params"`
 	}{
 		JSONRPC: "1.0",
 		ID:      "1",

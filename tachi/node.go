@@ -11,30 +11,45 @@ type NodeService service
 
 // HealthResponse is returned by NodeService.Health.
 type HealthResponse struct {
-	Status     string `json:"status" example:"ok"`
-	Validators int    `json:"validators" example:"3"`
+	// Status is the liveness label; always "ok" when the daemon is serving requests.
+	Status string `json:"status" example:"ok"`
+	// Validators is the count of validators currently in the bootstrap registry.
+	Validators int `json:"validators" example:"3"`
 }
 
 // NodeInfoResponse is returned by NodeService.Info.
 type NodeInfoResponse struct {
-	Version           string `json:"version"`
-	ChainID           string `json:"chain_id"`
-	NodeID            string `json:"node_id"`
-	Network           string `json:"network"`
-	Moniker           string `json:"moniker"`
-	SyncStatus        string `json:"sync_status"`
-	LatestBlockHeight int64  `json:"latest_block_height"`
-	LatestBlockTime   *int64 `json:"latest_block_time,omitempty"`
-	EpochBlocks       int64  `json:"epoch_blocks"`
-	Peers             int    `json:"peers"`
+	// Version is the CometBFT node software version reported by /status.
+	Version string `json:"version"`
+	// ChainID identifies the chain the node is participating in.
+	ChainID string `json:"chain_id"`
+	// NodeID is the CometBFT p2p node identifier.
+	NodeID string `json:"node_id"`
+	// Network is the network name advertised by the node (mirrors ChainID for CometBFT).
+	Network string `json:"network"`
+	// Moniker is the operator-chosen human-readable name for the node.
+	Moniker string `json:"moniker"`
+	// SyncStatus is "catching_up" when the node is replaying blocks, "synced" otherwise.
+	SyncStatus string `json:"sync_status"`
+	// LatestBlockHeight is the height of the most recently seen block.
+	LatestBlockHeight int64 `json:"latest_block_height"`
+	// LatestBlockTime is the Unix-seconds timestamp of the latest block, omitted if unknown.
+	LatestBlockTime *int64 `json:"latest_block_time,omitempty"`
+	// EpochBlocks is the configured number of blocks per Tachi epoch.
+	EpochBlocks int64 `json:"epoch_blocks"`
+	// Peers is the count of currently connected p2p peers.
+	Peers int `json:"peers"`
 }
 
 // CometRPCResponse is the raw JSON-RPC 2.0 envelope CometBFT wraps every
 // forwarded result in. Shape of Result varies by endpoint.
 type CometRPCResponse struct {
-	JSONRPC string          `json:"jsonrpc" example:"2.0"`
-	ID      int             `json:"id" example:"1"`
-	Result  json.RawMessage `json:"result" swaggertype:"object"`
+	// JSONRPC is the JSON-RPC version reported by CometBFT, always "2.0".
+	JSONRPC string `json:"jsonrpc" example:"2.0"`
+	// ID is the request identifier echoed back by CometBFT.
+	ID int `json:"id" example:"1"`
+	// Result is the endpoint-specific result body forwarded verbatim from CometBFT.
+	Result json.RawMessage `json:"result" swaggertype:"object"`
 }
 
 // Health is a liveness probe that returns the daemon status and validator
