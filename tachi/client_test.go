@@ -51,6 +51,30 @@ func TestNewClient_InvalidBaseURL(t *testing.T) {
 	}
 }
 
+func TestNewClient_RejectsNonHTTPScheme(t *testing.T) {
+	_, err := NewClient(WithBaseURL("ftp://example.com/"))
+	if err == nil {
+		t.Fatal("expected error for non-http(s) base URL scheme, got nil")
+	}
+}
+
+func TestNewClient_RejectsAPIKeyOverPlaintextRemote(t *testing.T) {
+	_, err := NewClient(WithBaseURL("http://example.com/"), WithAPIKey("secret"))
+	if err == nil {
+		t.Fatal("expected error for API key over http to a non-loopback host, got nil")
+	}
+}
+
+func TestNewClient_AllowsAPIKeyOverPlaintextLoopback(t *testing.T) {
+	c, err := NewClient(WithBaseURL("http://127.0.0.1:26670/"), WithAPIKey("secret"))
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	if c.apiKey != "secret" {
+		t.Errorf("apiKey = %q, want %q", c.apiKey, "secret")
+	}
+}
+
 func TestNewClient_Options(t *testing.T) {
 	hc := &http.Client{}
 	c, err := NewClient(

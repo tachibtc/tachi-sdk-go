@@ -6,8 +6,17 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
+)
+
+// pongWait is how long the read loop waits for a server pong (or any
+// message) before deciding the connection is dead. pingPeriod must stay
+// well under pongWait so a ping always lands before the deadline expires.
+const (
+	pongWait   = 60 * time.Second
+	pingPeriod = pongWait * 9 / 10
 )
 
 // WSService opens live websocket subscriptions for chain alerts.
@@ -130,6 +139,8 @@ type WSConn struct {
 	events chan WSEvent
 	// errc carries at most one error from an abnormal read-loop exit.
 	errc chan error
+	// done signals the ping keepalive goroutine to stop when Close is called.
+	done chan struct{}
 	// closeOnce ensures Close only closes conn once, even if called concurrently.
 	closeOnce sync.Once
 }
@@ -147,12 +158,20 @@ func (w *WSConn) Err() <-chan error { return w.errc }
 // times.
 func (w *WSConn) Close() error {
 	var err error
-	w.closeOnce.Do(func() { err = w.conn.Close() })
+	w.closeOnce.Do(func() {
+		close(w.done)
+		err = w.conn.Close()
+	})
 	return err
 }
 
 func (w *WSConn) readLoop() {
 	defer close(w.events)
+	w.conn.SetReadDeadline(time.Now().Add(pongWait))
+	w.conn.SetPongHandler(func(string) error {
+		w.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 	for {
 		var evt WSEvent
 		if err := w.conn.ReadJSON(&evt); err != nil {
@@ -163,6 +182,24 @@ func (w *WSConn) readLoop() {
 			return
 		}
 		w.events <- evt
+	}
+}
+
+// pingLoop periodically pings the server so a dead connection (e.g. a
+// half-open TCP session) surfaces as a read error instead of hanging
+// forever. Stops when Close is called.
+func (w *WSConn) pingLoop() {
+	ticker := time.NewTicker(pingPeriod)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			if err := w.conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
+				return
+			}
+		case <-w.done:
+			return
+		}
 	}
 }
 
@@ -202,6 +239,9 @@ func (s *WSService) Subscribe(ctx context.Context, opts SubscribeOptions) (*WSCo
 		header.Set("User-Agent", s.client.UserAgent)
 	}
 	if s.client.apiKey != "" {
+		if u.Scheme != "wss" && !isLoopbackHost(u.Hostname()) {
+			return nil, fmt.Errorf("tachi: refusing to use an API key over %s to non-loopback host %q; use wss", u.Scheme, u.Hostname())
+		}
 		header.Set("X-Api-Key", s.client.apiKey)
 	}
 
@@ -209,12 +249,15 @@ func (s *WSService) Subscribe(ctx context.Context, opts SubscribeOptions) (*WSCo
 	if err != nil {
 		return nil, fmt.Errorf("tachi: dial websocket: %w", err)
 	}
+	conn.SetReadLimit(maxResponseBytes)
 
 	wc := &WSConn{
 		conn:   conn,
 		events: make(chan WSEvent, 32),
 		errc:   make(chan error, 1),
+		done:   make(chan struct{}),
 	}
 	go wc.readLoop()
+	go wc.pingLoop()
 	return wc, nil
 }

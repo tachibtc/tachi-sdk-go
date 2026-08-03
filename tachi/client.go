@@ -38,6 +38,11 @@ const Version = "0.1.0"
 // defaultBaseURL is the public Tachi regtest daemon endpoint.
 const defaultBaseURL = "https://rpc-regtest.tachibtc.com/"
 
+// maxResponseBytes bounds how much of an HTTP response body or websocket
+// message the client will buffer, so a malicious or misbehaving daemon
+// can't OOM the caller.
+const maxResponseBytes = 64 << 20 // 64MB
+
 var defaultUserAgent = "daemon-go-sdk/" + Version
 
 // Client manages communication with the Tachi daemon RPC API. Create one
@@ -157,6 +162,12 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	if !strings.HasSuffix(u.Path, "/") {
 		u.Path += "/"
 	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil, fmt.Errorf("tachi: base URL scheme must be http or https, got %q", u.Scheme)
+	}
+	if c.apiKey != "" && u.Scheme != "https" && !isLoopbackHost(u.Hostname()) {
+		return nil, fmt.Errorf("tachi: refusing to use an API key over %s to non-loopback host %q; use https", u.Scheme, u.Hostname())
+	}
 	c.BaseURL = u
 
 	c.common.client = c
@@ -244,7 +255,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Res
 
 	response := &Response{Response: resp}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBytes))
 	if err != nil {
 		return response, fmt.Errorf("tachi: read response body: %w", err)
 	}
@@ -293,6 +304,12 @@ type ErrorResponse struct {
 func (r *ErrorResponse) Error() string {
 	req := r.Response.Request
 	return fmt.Sprintf("tachi: %v %v: %d %s", req.Method, req.URL, r.Response.StatusCode, r.Message)
+}
+
+// isLoopbackHost reports whether host (a URL hostname, no port) refers to
+// the local machine, where sending an API key over plain http/ws is safe.
+func isLoopbackHost(host string) bool {
+	return host == "localhost" || host == "127.0.0.1" || host == "::1" || strings.HasPrefix(host, "127.")
 }
 
 // setIf sets query[key] = value in q when value is non-empty.
