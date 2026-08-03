@@ -2,9 +2,18 @@ name: CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
+  # Weekly scan to catch newly disclosed vulnerabilities
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
 
 jobs:
-  ci:
+  build-and-test:
+    name: Build & Test
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
@@ -20,19 +29,42 @@ jobs:
         run: go vet ./...
 
       - name: go test
-        run: go test ./...
+        run: go test -race -count=1 ./...
 
-      - name: govulncheck
+  security:
+    name: Security Scanning
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so gitleaks can scan past commits
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: govulncheck (Go vulnerability scan)
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
 
-      - name: gosec
+      - name: gosec (Go SAST)
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
           gosec ./...
 
-      - name: gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: gitleaks (secret scan — free CLI, no license needed)
+        run: |
+          set -euo pipefail
+          VERSION="8.21.2"
+          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz" | tar -xz
+          ./gitleaks detect --source . --redact --verbose --no-banner
+
+      - name: Trivy filesystem scan (deps + config)
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
