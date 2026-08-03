@@ -1,0 +1,16 @@
+# Build artifacts
+/bin/
+*.exe
+*.test
+*.out
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+
+# Local agent/assistant config
+.claude/
+
+# OS
+.DS_Store
