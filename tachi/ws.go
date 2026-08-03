@@ -167,10 +167,9 @@ func (w *WSConn) Close() error {
 
 func (w *WSConn) readLoop() {
 	defer close(w.events)
-	w.conn.SetReadDeadline(time.Now().Add(pongWait))
+	_ = w.conn.SetReadDeadline(time.Now().Add(pongWait))
 	w.conn.SetPongHandler(func(string) error {
-		w.conn.SetReadDeadline(time.Now().Add(pongWait))
-		return nil
+		return w.conn.SetReadDeadline(time.Now().Add(pongWait))
 	})
 	for {
 		var evt WSEvent
