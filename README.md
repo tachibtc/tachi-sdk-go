@@ -8,11 +8,8 @@ signing, the watchtower, and live event subscriptions over WebSocket.
 ## Install
 
 ```sh
-go get daemon-go-sdk
+go get github.com/tachibtc/daemon-go-sdk
 ```
-
-(Update the module path once this repo is published under its real import
-path — see `go.mod`.)
 
 ## Quickstart
 
@@ -24,7 +21,7 @@ import (
 	"fmt"
 	"log"
 
-	"daemon-go-sdk/tachi"
+	"github.com/tachibtc/daemon-go-sdk/tachi"
 )
 
 func main() {
