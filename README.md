@@ -65,23 +65,139 @@ headers, etc. On a non-2xx response, `err` is a `*tachi.ErrorResponse`.
 ## Services
 
 The `Client` exposes one field per functional area; each maps to a group of
-daemon RPC endpoints.
+daemon RPC endpoints. Every method takes `context.Context` first and
+returns `(result, *tachi.Response, error)`. Full descriptions, response
+field docs, and a usage example for every method are in
+[`docs/INTEGRATION.md`](./docs/INTEGRATION.md#services) — this is the
+compact signature index.
 
-| Field | Endpoints | Purpose |
-|---|---|---|
-| `c.Node` | `/health`, `/tachi_nodeInfo`, `/tachi_status`, `/tachi_netInfo`, `/tachi_consensusState`, `/tachi_validatorsPower`, `/tachi_peerInfo` | Node health, identity, consensus/network status. |
-| `c.Validators` | `/tachi_validators*` | List and wait-for-ready on the validator bootstrap registry. |
-| `c.Block` | `/tachi_block`, `/tachi_listBlocks`, `/tachi_getBlock`, `/tachi_getBlockHash`, `/tachi_getBlockHeader` | Tachi-chain block lookups (not Bitcoin L1). |
-| `c.Epoch` | `/tachi_epoch`, `/tachi_listEpochs` | Epoch (Verkle-root checkpoint) lookups. |
-| `c.Tx` | `/tachi_tx`, `/tachi_txRaw`, `/tachi_listTransactions`, `/tachi_txBroadcastSync`, `/tachi_txBroadcastAsync`, `/tachi_txDecode`, `/tachi_txValidate`, `/tachi_feeEstimate`, `/tachi_mempool` | Transaction lookup, broadcast, decode/validate, mempool, fee estimation. |
-| `c.VTXO` | `/tachi_vtxo`, `/tachi_vtxoLocked`, `/tachi_listVtxos` | VTXO lookup by ID, by vault lock, and paginated listing. |
-| `c.Vault` | `/tachi_listVaults` | Vault listing (reconstruction params only with `WithAPIKey`). |
-| `c.Address` | `/tachi_address`, `/tachi_addressVtxos`, `/tachi_addressTransactions`, `/tachi_balance`, `/tachi_nonce`, `/tachi_mempoolByAddress` | Account-scoped balance, nonce, VTXOs, history, pending activity. |
-| `c.Dashboard` | `/tachi_stats`, `/tachi_supply`, `/tachi_search` | Explorer/dashboard aggregate stats and free-text search. |
-| `c.Bitcoin` | `POST /` | Pass-through Bitcoin Core JSON-RPC 1.0 proxy. Common read-only methods need no auth; wallet/admin methods need `WithAPIKey`. |
-| `c.Sign` | `/tachi_signTransaction` | Cooperative-refund threshold-signing ceremony. |
-| `c.Watchtower` | `/tachi_watchtower/status`, `/tachi_watchtower/receipts` | Breach-detection status and receipts (only if the daemon has a watchtower enabled). |
-| `c.WS` | `/tachi_ws` | Live subscription feed — see below. |
+### `c.Node` — health, identity, consensus/network status
+
+```go
+Health(ctx) (*HealthResponse, *Response, error)                          // GET /health
+Info(ctx) (*NodeInfoResponse, *Response, error)                          // GET /tachi_nodeInfo
+Status(ctx) (*CometRPCResponse, *Response, error)                        // GET /tachi_status
+NetInfo(ctx) (*CometRPCResponse, *Response, error)                       // GET /tachi_netInfo
+ConsensusState(ctx) (*CometRPCResponse, *Response, error)                // GET /tachi_consensusState
+ValidatorsPower(ctx) (*CometRPCResponse, *Response, error)               // GET /tachi_validatorsPower
+Query(ctx, path string, opts *QueryOptions) (*CometRPCResponse, *Response, error) // GET /tachi_query
+```
+
+### `c.Validators` — bootstrap registry, this node's peer info
+
+```go
+List(ctx) (*ValidatorsResponse, *Response, error)          // GET /tachi_validators
+Live(ctx) (*LiveValidatorsResponse, *Response, error)      // GET /tachi_validators/live
+Count(ctx) (*ValidatorCountResponse, *Response, error)     // GET /tachi_validators/count
+Ready(ctx, expected int) (*ReadyResponse, *Response, error) // GET /tachi_validators/ready
+PeerInfo(ctx) (*ValidatorInfo, *Response, error)            // GET /tachi_peerInfo
+```
+
+`/tachi_validators/register` is intentionally not wrapped by this SDK.
+
+### `c.Block` — Tachi-chain block lookups (not Bitcoin L1)
+
+```go
+Get(ctx, height int64) (*BlockResponse, *Response, error)                    // GET /tachi_block
+List(ctx, page, pageSize int) (*ListBlocksResponse, *Response, error)        // GET /tachi_listBlocks
+Hash(ctx, height int64) (*GetBlockHashResponse, *Response, error)            // GET /tachi_getBlockHash
+HeaderByHeight(ctx, height int64) (*GetBlockHeaderResponse, *Response, error) // GET /tachi_getBlockHeader
+HeaderByHash(ctx, hash string) (*GetBlockHeaderResponse, *Response, error)   // GET /tachi_getBlockHeader
+ByHeight(ctx, height int64) (*BlockResponse, *Response, error)                // GET /tachi_getBlock
+ByHash(ctx, hash string) (*BlockResponse, *Response, error)                  // GET /tachi_getBlock
+```
+
+### `c.Epoch` — Verkle-root checkpoint lookups
+
+```go
+Get(ctx, id uint32) (*GetEpochResponse, *Response, error)             // GET /tachi_epoch?id=
+ByHash(ctx, hash string) (*GetEpochResponse, *Response, error)         // GET /tachi_epoch?hash=
+List(ctx, page, pageSize int) (*ListEpochsResponse, *Response, error) // GET /tachi_listEpochs
+```
+
+### `c.Tx` — transaction lookup, decode/validate, broadcast, mempool, fees
+
+```go
+Get(ctx, hash string, opts *TxOptions) (*GetTransactionResponse, *Response, error) // GET /tachi_tx
+Raw(ctx, hash string) (*GetRawTransactionResponse, *Response, error)               // GET /tachi_txRaw
+List(ctx, opts *ListTransactionsOptions) (*ListTransactionsResponse, *Response, error) // GET /tachi_listTransactions
+Mempool(ctx) (*MempoolResponse, *Response, error)                                  // GET /tachi_mempool
+Decode(ctx, hexTx string) (*TxDecodeResponse, *Response, error)                    // POST /tachi_txDecode
+Validate(ctx, hexTx string) (*TxValidateResponse, *Response, error)                // POST /tachi_txValidate
+BroadcastSync(ctx, hexTx string) (*CometRPCResponse, *Response, error)             // POST /tachi_txBroadcastSync
+BroadcastAsync(ctx, hexTx string) (*CometRPCResponse, *Response, error)            // POST /tachi_txBroadcastAsync
+FeeEstimate(ctx) (*FeeEstimateResponse, *Response, error)                          // GET /tachi_feeEstimate
+```
+
+### `c.VTXO` — VTXO lookup and listing
+
+```go
+Get(ctx, id string) (*VTXOResponse, *Response, error)                    // GET /tachi_vtxo
+Locked(ctx, vault string) (*LockedVTXOsResponse, *Response, error)       // GET /tachi_vtxoLocked
+List(ctx, page, pageSize int) (*ListVTXOsResponse, *Response, error)     // GET /tachi_listVtxos
+```
+
+### `c.Vault` — vault listing
+
+```go
+List(ctx, user string, page, pageSize int) (*ListVaultsResponse, *Response, error) // GET /tachi_listVaults
+```
+
+Reconstruction fields (`CSVDelay`, `Threshold`, `QuorumKeyset`, `UserKey`)
+are only populated with `WithAPIKey`.
+
+### `c.Address` — account-scoped balance, nonce, VTXOs, history
+
+```go
+Get(ctx, address string) (*AddressResponse, *Response, error)                                    // GET /tachi_address
+VTXOs(ctx, address string, includeSpent bool) (*AddressVTXOsResponse, *Response, error)          // GET /tachi_addressVtxos
+Transactions(ctx, address string, opts *AddressTransactionsOptions) (*AddressTransactionsResponse, *Response, error) // GET /tachi_addressTransactions
+Balance(ctx, address string) (*BalanceResponse, *Response, error)                                 // GET /tachi_balance
+Nonce(ctx, address string) (*NonceResponse, *Response, error)                                     // GET /tachi_nonce
+Mempool(ctx, address string) (*MempoolByAddressResponse, *Response, error)                        // GET /tachi_mempoolByAddress
+```
+
+### `c.Dashboard` — explorer aggregate stats and search
+
+```go
+Stats(ctx) (*StatsResponse, *Response, error)          // GET /tachi_stats
+Supply(ctx) (*SupplyResponse, *Response, error)        // GET /tachi_supply
+Search(ctx, q string) (*SearchResponse, *Response, error) // GET /tachi_search
+```
+
+### `c.Bitcoin` — pass-through Bitcoin Core JSON-RPC proxy
+
+```go
+RPC(ctx, method string, params interface{}) (json.RawMessage, *Response, error) // POST /
+```
+
+Common read-only methods need no auth; wallet/admin/network-mutation
+methods need `WithAPIKey` set to the daemon's master `BTC_RPC_API_KEY`. See
+[Bitcoin JSON-RPC proxy](#bitcoin-json-rpc-proxy) below.
+
+### `c.Sign` — cooperative-refund threshold-signing ceremony
+
+```go
+Transaction(ctx, tx *RefundTx) (*SignTransactionResponse, *Response, error) // POST /tachi_signTransaction
+```
+
+### `c.Watchtower` — vault breach detection status and receipts
+
+```go
+Status(ctx) (*WatchtowerStatus, *Response, error)                            // GET /tachi_watchtower/status
+Receipts(ctx, vaultID string) ([]BreachReceipt, *Response, error)             // GET /tachi_watchtower/receipts
+Receipt(ctx, vaultID string, state uint64) (*BreachReceipt, *Response, error) // GET /tachi_watchtower/receipts?state=
+```
+
+Returns a 503 `*ErrorResponse` if the daemon has no watchtower configured.
+
+### `c.WS` — live subscription feed
+
+```go
+Subscribe(ctx, opts SubscribeOptions) (*WSConn, error) // GET /tachi_ws (upgraded to ws/wss)
+```
+
+See [Live subscriptions](#live-subscriptions-websocket) below.
 
 ## Live subscriptions (WebSocket)
 
