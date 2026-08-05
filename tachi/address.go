@@ -52,6 +52,12 @@ type VTXOItem struct {
 	Locked bool `json:"locked"`
 	// VaultAddress is the bech32m P2TR vault address when Locked is true; empty otherwise.
 	VaultAddress string `json:"vault_address,omitempty"`
+	// BTCHeight is the Bitcoin L1 block height of the deposit that created
+	// this VTXO; 0 when not a deposit or not yet populated.
+	BTCHeight uint32 `json:"btc_height,omitempty"`
+	// BTCTimestamp is the Bitcoin L1 block timestamp of the deposit that
+	// created this VTXO; 0 when not a deposit or not yet populated.
+	BTCTimestamp uint32 `json:"btc_timestamp,omitempty"`
 }
 
 // AddressVTXOsResponse is returned by AddressService.VTXOs.

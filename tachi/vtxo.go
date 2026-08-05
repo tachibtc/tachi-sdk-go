@@ -24,6 +24,17 @@ type VTXOResponse struct {
 	Height int64 `json:"height"`
 	// Script is the hex-encoded locking script associated with this VTXO.
 	Script string `json:"script"`
+	// Locked is true while this VTXO is locked to a vault.
+	Locked bool `json:"locked"`
+	// VaultAddress is the bech32m P2TR vault address this VTXO is locked
+	// to; empty when Locked is false.
+	VaultAddress string `json:"vault_address,omitempty"`
+	// BTCHeight is the Bitcoin L1 block height of the deposit that created
+	// this VTXO; 0 when not a deposit or not yet populated.
+	BTCHeight uint32 `json:"btc_height,omitempty"`
+	// BTCTimestamp is the Bitcoin L1 block timestamp of the deposit that
+	// created this VTXO; 0 when not a deposit or not yet populated.
+	BTCTimestamp uint32 `json:"btc_timestamp,omitempty"`
 }
 
 // Get returns a single VTXO by its 64-char hex ID.

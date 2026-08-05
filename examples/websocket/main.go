@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	"daemon-go-sdk/tachi"
+	"github.com/tachibtc/daemon-go-sdk/tachi"
 )
 
 func main() {

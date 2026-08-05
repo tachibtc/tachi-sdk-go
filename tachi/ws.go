@@ -122,10 +122,13 @@ type SubscribeOptions struct {
 	Blocks bool
 	// Validators subscribes to an alert for every new validator registration.
 	Validators bool
+	// Txs subscribes to every transaction (pending, then committed),
+	// unfiltered by Address/Vault.
+	Txs bool
 }
 
 func (o SubscribeOptions) empty() bool {
-	return o.Address == "" && o.Vault == "" && o.VaultID == "" && !o.Blocks && !o.Validators
+	return o.Address == "" && o.Vault == "" && o.VaultID == "" && !o.Blocks && !o.Validators && !o.Txs
 }
 
 // WSConn is a live subscription opened by WSService.Subscribe. Events
@@ -209,7 +212,7 @@ func (w *WSConn) pingLoop() {
 // websocket.Conn).
 func (s *WSService) Subscribe(ctx context.Context, opts SubscribeOptions) (*WSConn, error) {
 	if opts.empty() {
-		return nil, fmt.Errorf("tachi: at least one of Address, Vault, VaultID, Blocks, or Validators is required")
+		return nil, fmt.Errorf("tachi: at least one of Address, Vault, VaultID, Blocks, Validators, or Txs is required")
 	}
 
 	u := *s.client.BaseURL
@@ -230,6 +233,9 @@ func (s *WSService) Subscribe(ctx context.Context, opts SubscribeOptions) (*WSCo
 	}
 	if opts.Validators {
 		q.Set("validators", "true")
+	}
+	if opts.Txs {
+		q.Set("txs", "true")
 	}
 	u.RawQuery = q.Encode()
 

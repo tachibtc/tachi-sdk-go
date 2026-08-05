@@ -13,6 +13,10 @@ type VaultService service
 type VaultListItem struct {
 	// VaultID is the hex VaultID = H(funding_txid || vout).
 	VaultID string `json:"vault_id"`
+	// Name is the display label set at open. Not unique — key on VaultID.
+	// Untrusted: chosen by the vault opener and may contain HTML
+	// metacharacters. Escape it for the render context before displaying.
+	Name string `json:"name,omitempty"`
 	// State is the vault lifecycle label (always "open" today).
 	State string `json:"state"`
 	// LatestStateNum is the vault's latest state number (always 0 today).
