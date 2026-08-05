@@ -25,6 +25,12 @@ type GetEpochResponse struct {
 	TxCount int `json:"tx_count"`
 	// TxHashes is the list of 64-char hex transaction hashes included in this epoch.
 	TxHashes []string `json:"tx_hashes"`
+	// HATCount is the number of HAT (hash anchor tree) commitments recorded
+	// in this epoch's Verkle tree.
+	HATCount int `json:"hat_count"`
+	// L1SettlementTxID is the hex-encoded Bitcoin L1 transaction that settled
+	// this epoch's Verkle root; empty until the epoch is L1-settled.
+	L1SettlementTxID string `json:"l1_settlement_txid,omitempty"`
 }
 
 // Get returns a Tachi-decoded view of the epoch with the given sequential
