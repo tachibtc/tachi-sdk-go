@@ -70,7 +70,7 @@ daemon RPC endpoints.
 | Field | Endpoints | Purpose |
 |---|---|---|
 | `c.Node` | `/health`, `/tachi_nodeInfo`, `/tachi_status`, `/tachi_netInfo`, `/tachi_consensusState`, `/tachi_validatorsPower`, `/tachi_peerInfo` | Node health, identity, consensus/network status. |
-| `c.Validators` | `/tachi_validators*` | List, register, and wait-for-ready on the validator bootstrap registry. |
+| `c.Validators` | `/tachi_validators*` | List and wait-for-ready on the validator bootstrap registry. |
 | `c.Block` | `/tachi_block`, `/tachi_listBlocks`, `/tachi_getBlock`, `/tachi_getBlockHash`, `/tachi_getBlockHeader` | Tachi-chain block lookups (not Bitcoin L1). |
 | `c.Epoch` | `/tachi_epoch`, `/tachi_listEpochs` | Epoch (Verkle-root checkpoint) lookups. |
 | `c.Tx` | `/tachi_tx`, `/tachi_txRaw`, `/tachi_listTransactions`, `/tachi_txBroadcastSync`, `/tachi_txBroadcastAsync`, `/tachi_txDecode`, `/tachi_txValidate`, `/tachi_feeEstimate`, `/tachi_mempool` | Transaction lookup, broadcast, decode/validate, mempool, fee estimation. |

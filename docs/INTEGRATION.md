@@ -87,7 +87,7 @@ covered by that page.
 | Field | Purpose |
 |---|---|
 | `c.Node` | Health, node identity, consensus/network status. |
-| `c.Validators` | Validator bootstrap registry: list, register, wait-for-ready. |
+| `c.Validators` | Validator bootstrap registry: list, wait-for-ready. |
 | `c.Block` | Tachi-chain block lookups by height, hash, or range. |
 | `c.Epoch` | Verkle-root checkpoint lookups. |
 | `c.Tx` | Transaction lookup, broadcast (sync/async), decode/validate, mempool, fee estimation. |

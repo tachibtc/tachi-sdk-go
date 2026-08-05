@@ -2,27 +2,13 @@ package tachi
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
-	"time"
-
-	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 )
 
 // ValidatorsService groups the bootstrap validator registry and this
 // node's own peer info.
 type ValidatorsService service
-
-// registerSigDomain must match the daemon's domain-separation tag
-// (rpc.registerSigDomain) — changing it here without a matching daemon
-// change will make every signed registration fail verification.
-const registerSigDomain = "tachi-register-v1"
 
 // ValidatorInfo represents a registered validator, and is also the shape
 // returned by ValidatorsService.PeerInfo for the local node.
@@ -37,24 +23,6 @@ type ValidatorInfo struct {
 	P2PPort int `json:"p2p_port,omitempty"`
 	// RPCAddr is the daemon RPC listen address ("host:port") this validator serves.
 	RPCAddr string `json:"rpc_addr,omitempty"`
-}
-
-// RegisterRequest is the ValidatorsService.Register body. Build one with
-// SignRegisterRequest, which fills Timestamp and Signature.
-type RegisterRequest struct {
-	ValidatorInfo
-	// Timestamp is the unix-seconds time at which the request was signed; checked against a freshness window.
-	Timestamp int64 `json:"timestamp"`
-	// Signature is the BIP-340 Schnorr signature (128-char hex) over the canonical register digest.
-	Signature string `json:"signature"`
-}
-
-// RegisterResponse is returned by ValidatorsService.Register.
-type RegisterResponse struct {
-	// Status is a fixed acknowledgement string ("registered") confirming a successful registration.
-	Status string `json:"status" example:"registered"`
-	// Total is the new total number of validators in the registry after this registration.
-	Total int `json:"total" example:"3"`
 }
 
 // ValidatorsResponse is returned by ValidatorsService.List.
@@ -133,62 +101,6 @@ func (s *ValidatorsService) Ready(ctx context.Context, expected int) (*ReadyResp
 	}
 	var out ReadyResponse
 	resp, err := s.client.get(ctx, "tachi_validators/ready", q, &out)
-	if err != nil {
-		return nil, resp, err
-	}
-	return &out, resp, nil
-}
-
-// canonicalRegisterDigest builds the 32-byte digest a /validators/register
-// signature commits to, byte-for-byte matching the daemon's
-// canonicalRegisterDigest (rpc.go). Any change to field order or the domain
-// tag must be mirrored on the daemon side or every signature will fail
-// verification.
-func canonicalRegisterDigest(info ValidatorInfo, timestamp int64) [32]byte {
-	var b strings.Builder
-	b.WriteString(registerSigDomain)
-	b.WriteByte('\n')
-	b.WriteString(strings.ToLower(info.PubKeyHex))
-	b.WriteByte('\n')
-	b.WriteString(info.PeerID)
-	b.WriteByte('\n')
-	b.WriteString(info.Host)
-	b.WriteByte('\n')
-	b.WriteString(strconv.Itoa(info.P2PPort))
-	b.WriteByte('\n')
-	b.WriteString(info.RPCAddr)
-	b.WriteByte('\n')
-	b.WriteString(strconv.FormatInt(timestamp, 10))
-	return sha256.Sum256([]byte(b.String()))
-}
-
-// SignRegisterRequest fills in Timestamp and Signature on req using
-// privKey, producing a BIP-340 Schnorr signature over the canonical
-// register digest the daemon verifies in ValidatorsService.Register.
-// privKey must correspond to req.PubKeyHex (the compressed secp256k1
-// pubkey hex).
-func SignRegisterRequest(req *RegisterRequest, privKey *btcec.PrivateKey) error {
-	if privKey == nil {
-		return errors.New("tachi: privKey is required")
-	}
-	if req.PubKeyHex == "" {
-		return errors.New("tachi: PubKeyHex is required")
-	}
-	req.Timestamp = time.Now().Unix()
-	digest := canonicalRegisterDigest(req.ValidatorInfo, req.Timestamp)
-	sig, err := schnorr.Sign(privKey, digest[:])
-	if err != nil {
-		return fmt.Errorf("tachi: sign register payload: %w", err)
-	}
-	req.Signature = hex.EncodeToString(sig.Serialize())
-	return nil
-}
-
-// Register registers a validator with this bootstrap node. req must be
-// signed first — see SignRegisterRequest.
-func (s *ValidatorsService) Register(ctx context.Context, req *RegisterRequest) (*RegisterResponse, *Response, error) {
-	var out RegisterResponse
-	resp, err := s.client.post(ctx, "tachi_validators/register", req, &out)
 	if err != nil {
 		return nil, resp, err
 	}
