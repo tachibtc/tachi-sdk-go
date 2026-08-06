@@ -1,4 +1,4 @@
-module github.com/tachibtc/daemon-go-sdk
+module github.com/tachibtc/tachi-sdk-go
 
 go 1.25.7
 
