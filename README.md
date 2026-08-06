@@ -1,5 +1,7 @@
 # tachi-sdk-go
 
+[![Release](https://img.shields.io/badge/release-v0.2.0-blue)](https://github.com/tachibtc/tachi-sdk-go/releases/tag/v0.2.0)
+
 A Go client for the [Tachi daemon](../daemon) RPC API — validators, chain
 data (blocks, epochs, transactions, VTXOs, vaults), account lookups,
 dashboard/explorer endpoints, the bitcoind JSON-RPC proxy, cooperative-refund
