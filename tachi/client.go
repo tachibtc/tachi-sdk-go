@@ -43,7 +43,7 @@ const defaultBaseURL = "https://rpc-regtest.tachibtc.com/"
 // can't OOM the caller.
 const maxResponseBytes = 64 << 20 // 64MB
 
-var defaultUserAgent = "daemon-go-sdk/" + Version
+var defaultUserAgent = "tachi-sdk-go/" + Version
 
 // Client manages communication with the Tachi daemon RPC API. Create one
 // with NewClient; the zero value is not usable. A Client is safe for
@@ -60,7 +60,7 @@ type Client struct {
 	BaseURL *url.URL
 
 	// UserAgent is sent on every request. Defaults to
-	// "daemon-go-sdk/<Version>".
+	// "tachi-sdk-go/<Version>".
 	UserAgent string
 
 	// apiKey, when set, is sent as X-Api-Key on every request. Unlocks
@@ -131,7 +131,7 @@ func WithAPIKey(key string) ClientOption {
 	return func(c *Client) { c.apiKey = key }
 }
 
-// WithUserAgent overrides the default "daemon-go-sdk/<Version>" User-Agent.
+// WithUserAgent overrides the default "tachi-sdk-go/<Version>" User-Agent.
 func WithUserAgent(ua string) ClientOption {
 	return func(c *Client) { c.UserAgent = ua }
 }
