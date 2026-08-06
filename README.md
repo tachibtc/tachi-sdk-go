@@ -1,4 +1,4 @@
-# daemon-go-sdk
+# tachi-sdk-go
 
 A Go client for the [Tachi daemon](../daemon) RPC API — validators, chain
 data (blocks, epochs, transactions, VTXOs, vaults), account lookups,
@@ -8,7 +8,7 @@ signing, the watchtower, and live event subscriptions over WebSocket.
 ## Install
 
 ```sh
-go get github.com/tachibtc/daemon-go-sdk
+go get github.com/tachibtc/tachi-sdk-go
 ```
 
 ## Quickstart
@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/tachibtc/daemon-go-sdk/tachi"
+	"github.com/tachibtc/tachi-sdk-go/tachi"
 )
 
 func main() {

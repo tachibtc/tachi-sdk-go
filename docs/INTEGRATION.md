@@ -1,6 +1,6 @@
 # Integration guide
 
-A complete reference for external consumers of `daemon-go-sdk`: the auth
+A complete reference for external consumers of `tachi-sdk-go`: the auth
 model, error handling, pagination, and every service method with its
 signature, request/response shapes, and a usage example. The
 [README](../README.md) covers install/quickstart and a compact index; this
@@ -22,7 +22,7 @@ Options (all optional, can be combined):
 | `WithBaseURL(url string)` | Point at a non-default daemon. Defaults to `https://rpc-regtest.tachibtc.com/`. |
 | `WithAPIKey(key string)` | Send `X-Api-Key` on every request (see [Auth model](#auth-model)). |
 | `WithHTTPClient(hc *http.Client)` | Use a custom `*http.Client` — custom TLS config, proxy, timeouts, or a retry-wrapped `RoundTripper`. The SDK itself never retries. |
-| `WithUserAgent(ua string)` | Override the default `daemon-go-sdk/<Version>` User-Agent. |
+| `WithUserAgent(ua string)` | Override the default `tachi-sdk-go/<Version>` User-Agent. |
 
 `NewClient` validates the base URL eagerly and returns an error instead of a
 usable client on failure:
