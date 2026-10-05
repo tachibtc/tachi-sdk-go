@@ -3,6 +3,8 @@ package tachi
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"net/url"
 )
 
@@ -15,6 +17,24 @@ type HealthResponse struct {
 	Status string `json:"status" example:"ok"`
 	// Validators is the count of validators currently in the bootstrap registry.
 	Validators int `json:"validators" example:"3"`
+}
+
+// ChainHealthResponse is returned by NodeService.ChainHealth.
+type ChainHealthResponse struct {
+	// Status is "ok", or "unhealthy" when any problem is listed.
+	Status string `json:"status" example:"ok"`
+	// Problems lists why the node is unhealthy; empty when healthy.
+	Problems []string `json:"problems"`
+	// Height is the last block this node committed (0 before the first).
+	Height int64 `json:"height" example:"798295"`
+	// LastBlockAgeSeconds is the time since this node last committed a block.
+	LastBlockAgeSeconds float64 `json:"last_block_age_seconds" example:"4.2"`
+	// MaxBlockAgeSeconds is the threshold for LastBlockAgeSeconds.
+	MaxBlockAgeSeconds float64 `json:"max_block_age_seconds" example:"300"`
+	// MemoryBytes is the memory the daemon's Go runtime has mapped from the OS.
+	MemoryBytes uint64 `json:"memory_bytes" example:"3900000000"`
+	// MaxMemoryBytes is the threshold for MemoryBytes; 0 = not checked.
+	MaxMemoryBytes uint64 `json:"max_memory_bytes" example:"8000000000"`
 }
 
 // NodeInfoResponse is returned by NodeService.Info.
@@ -57,6 +77,24 @@ type CometRPCResponse struct {
 func (s *NodeService) Health(ctx context.Context) (*HealthResponse, *Response, error) {
 	var out HealthResponse
 	resp, err := s.client.get(ctx, "health", nil, &out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return &out, resp, nil
+}
+
+// ChainHealth reports whether the node is committing blocks and within its
+// memory threshold. Meant for alerting, not liveness: an unhealthy node
+// answers 503, in which case the decoded body is still returned alongside
+// the *ErrorResponse so callers can read Problems.
+func (s *NodeService) ChainHealth(ctx context.Context) (*ChainHealthResponse, *Response, error) {
+	var out ChainHealthResponse
+	resp, err := s.client.get(ctx, "health/chain", nil, &out)
+	var errResp *ErrorResponse
+	if errors.As(err, &errResp) && errResp.Response.StatusCode == http.StatusServiceUnavailable &&
+		json.Unmarshal([]byte(errResp.Message), &out) == nil {
+		return &out, resp, err
+	}
 	if err != nil {
 		return nil, resp, err
 	}

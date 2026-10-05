@@ -84,3 +84,21 @@ func TestSignService_Transaction_ThresholdNotReached(t *testing.T) {
 		t.Errorf("StatusCode = %d, want 504", errResp.Response.StatusCode)
 	}
 }
+
+func TestSignService_Transfer(t *testing.T) {
+	ts := setup(t)
+	ts.mux.HandleFunc("/tachi_signTransfer", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		writeJSON(t, w, TransferCosignResponse{
+			Signatures: 5,
+			Transfer:   &TransferTx{Version: 2, Inputs: []RefundInput{{TapScriptSig: []RefundTapSig{{Pubkey: "pk1"}}}}},
+		})
+	})
+	got, _, err := ts.client.Sign.Transfer(context.Background(), &TransferTx{Version: 2, UserSig: "deadbeef"})
+	if err != nil {
+		t.Fatalf("Transfer: %v", err)
+	}
+	if got.Signatures != 5 || got.Transfer.Inputs[0].TapScriptSig[0].Pubkey != "pk1" {
+		t.Errorf("got %+v", got)
+	}
+}

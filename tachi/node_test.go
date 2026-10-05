@@ -104,3 +104,19 @@ func TestNodeService_Query_NilOptions(t *testing.T) {
 		t.Fatalf("Query: %v", err)
 	}
 }
+
+func TestNodeService_ChainHealth_Unhealthy(t *testing.T) {
+	ts := setup(t)
+	ts.mux.HandleFunc("/health/chain", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		writeJSON(t, w, ChainHealthResponse{Status: "unhealthy", Problems: []string{"no block committed"}, Height: 42})
+	})
+	got, _, err := ts.client.Node.ChainHealth(context.Background())
+	if _, ok := err.(*ErrorResponse); !ok {
+		t.Fatalf("err = %v, want *ErrorResponse", err)
+	}
+	if got == nil || got.Status != "unhealthy" || got.Height != 42 || len(got.Problems) != 1 {
+		t.Errorf("got %+v, want decoded unhealthy body", got)
+	}
+}

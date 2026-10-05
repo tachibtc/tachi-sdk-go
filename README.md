@@ -74,6 +74,7 @@ compact signature index.
 
 ```go
 Health(ctx) (*HealthResponse, *Response, error)                          // GET /health
+ChainHealth(ctx) (*ChainHealthResponse, *Response, error)                // GET /health/chain
 Info(ctx) (*NodeInfoResponse, *Response, error)                          // GET /tachi_nodeInfo
 Status(ctx) (*CometRPCResponse, *Response, error)                        // GET /tachi_status
 NetInfo(ctx) (*CometRPCResponse, *Response, error)                       // GET /tachi_netInfo
@@ -178,6 +179,7 @@ methods need `WithAPIKey` set to the daemon's master `BTC_RPC_API_KEY`. See
 
 ```go
 Transaction(ctx, tx *RefundTx) (*SignTransactionResponse, *Response, error) // POST /tachi_signTransaction
+Transfer(ctx, tx *TransferTx) (*TransferCosignResponse, *Response, error)   // POST /tachi_signTransfer (regtest only)
 ```
 
 ### `c.Watchtower` — vault breach detection status and receipts
