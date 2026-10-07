@@ -76,8 +76,8 @@ _ = resp // *tachi.Response wraps *http.Response — inspect headers/status on s
   request round-tripped fine, but bitcoind rejected it). That comes back as
   a plain `error` wrapping `*tachi.BitcoinRPCError` (`Code`, `Message`) —
   use `errors.As` to recover it.
-- `Sign.Transaction` returns a 503 `*ErrorResponse` if refund signing is
-  disabled on the daemon, or 504 if the signing threshold wasn't reached
+- `Sign.Transaction` and `Sign.Transfer` return a 503 `*ErrorResponse` if
+  refund signing (or, for `Transfer`, transfers) is disabled on the daemon, or 504 if the signing threshold wasn't reached
   before its deadline.
 - `Watchtower.Status`/`Receipts`/`Receipt` return a 503 `*ErrorResponse` if
   the daemon has no watchtower configured; `Receipt` returns 404 if no
@@ -153,6 +153,7 @@ call through the shared `service` base type. Every method takes
 
 ```go
 c.Node.Health(ctx) (*HealthResponse, *Response, error)
+c.Node.ChainHealth(ctx) (*ChainHealthResponse, *Response, error)
 c.Node.Info(ctx) (*NodeInfoResponse, *Response, error)
 c.Node.Status(ctx) (*CometRPCResponse, *Response, error)
 c.Node.NetInfo(ctx) (*CometRPCResponse, *Response, error)
@@ -162,6 +163,7 @@ c.Node.Query(ctx, path string, opts *QueryOptions) (*CometRPCResponse, *Response
 ```
 
 - **`Health`** — `GET /health`. Liveness probe. `HealthResponse{Status, Validators}`.
+- **`ChainHealth`** — `GET /health/chain`. Alerting check: is the node committing blocks and under its memory threshold. `ChainHealthResponse{Status, Problems, Height, LastBlockAgeSeconds, MaxBlockAgeSeconds, MemoryBytes, MaxMemoryBytes}`. An unhealthy node answers 503; the decoded body is still returned alongside the `*ErrorResponse`.
 - **`Info`** — `GET /tachi_nodeInfo`. `NodeInfoResponse{Version, ChainID, NodeID, Network, Moniker, SyncStatus, LatestBlockHeight, LatestBlockTime, EpochBlocks, Peers}`.
 - **`Status`** — `GET /tachi_status`, forwards CometBFT `/status` verbatim in `CometRPCResponse.Result`.
 - **`NetInfo`** — `GET /tachi_netInfo`, forwards CometBFT `net_info` (peer connections).
@@ -457,23 +459,33 @@ raw, _, err = c.Bitcoin.RPC(ctx, "listwallets", nil)
 
 ```go
 c.Sign.Transaction(ctx, tx *RefundTx) (*SignTransactionResponse, *Response, error)
+c.Sign.Transfer(ctx, tx *TransferTx) (*TransferCosignResponse, *Response, error)
 ```
 
 - **`Transaction`** — `POST /tachi_signTransaction`. Fans a PSBT-shaped
   cooperative-refund transaction out to the vault's signing quorum and
   returns it with the collected `tapScriptSig` partials attached. The
-  caller must supply `tx.Inputs[0].UserSig` (the vault owner's signature)
+  caller must supply `tx.UserSig` (the vault owner's signature)
   before calling; the caller then adds its own final signature and
   finalizes/broadcasts. Returns a 503 `*ErrorResponse` if refund signing is
   disabled on the daemon, or 504 if the signing threshold wasn't reached in
   time.
 
+- **`Transfer`** — `POST /tachi_signTransfer`. Same ceremony as
+  `Transaction`, but `Outputs[0]` may be any destination rather than the
+  vault's `to_local`. `TransferTx` is an alias of `RefundTx`; the result is
+  `TransferCosignResponse{Transfer, Signatures}`. Regtest only: every output
+  must be >= 330 sats, `Inputs[0].Sequence`/`Locktime` must encode the
+  vault's latest state hint, and every VTXO locked to the vault must belong
+  to its owner.
+
 `RefundTx` mirrors PSBT structure (camelCase JSON tags to match the
 daemon's reference schema): `{Version, Locktime, Inputs []RefundInput,
 Outputs []RefundOutput}`, where `Inputs[0]` is the vault's funding UTXO
 (`Prevout`, `Sequence`, `WitnessUtxo`, `TapLeafScript` — the cooperative
-leaf, `TapInternalKey`, `SighashType`, and `UserSig`), and `Outputs[0]` is
-the canonical `to_local` P2TR.
+leaf, `TapInternalKey`, `SighashType`), `Outputs[0]` is the canonical
+`to_local` P2TR, and `UserSig` is the owner's signature over the
+cooperative-leaf sighash.
 
 ```go
 tx := &tachi.RefundTx{
@@ -486,11 +498,11 @@ tx := &tachi.RefundTx{
 		TapLeafScript:  []tachi.RefundTapLeaf{{LeafVersion: 0xc0, Script: coopLeafScriptHex, ControlBlock: controlBlockHex}},
 		TapInternalKey: internalKeyHex,
 		SighashType:    0,
-		UserSig:        userSigHex, // caller-supplied, over the cooperative-leaf sighash
 	}},
 	Outputs: []tachi.RefundOutput{
 		{Value: refundValueSat, Script: toLocalScriptHex},
 	},
+	UserSig: userSigHex, // caller-supplied, over the cooperative-leaf sighash
 }
 signed, _, err := c.Sign.Transaction(ctx, tx)
 if err != nil {

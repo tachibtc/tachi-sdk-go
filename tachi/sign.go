@@ -113,3 +113,35 @@ func (s *SignService) Transaction(ctx context.Context, tx *RefundTx) (*SignTrans
 	}
 	return &out, resp, nil
 }
+
+// TransferTx is the PSBT-shaped transfer transaction SignService.Transfer
+// accepts and returns. Same wire shape as RefundTx, except Outputs[0] may
+// be any caller-chosen destination rather than the vault's to_local.
+type TransferTx = RefundTx
+
+// TransferCosignResponse is returned by SignService.Transfer.
+type TransferCosignResponse struct {
+	// Transfer is the transfer transaction with the quorum partial signatures attached.
+	Transfer *TransferTx `json:"transfer"`
+	// Signatures is the number of quorum partial signatures collected.
+	Signatures int `json:"signatures" example:"5"`
+}
+
+// Transfer fans a PSBT-shaped VTXO transfer (which must carry the owner's
+// UserSig over the tx) out to the vault's signing quorum and returns it with
+// the collected tapScriptSig partials attached. Regtest only: every output
+// must be >= 330 sats, Inputs[0].Sequence and Locktime must encode the
+// vault's latest state hint, and every VTXO locked to the vault must belong
+// to its owner.
+//
+// Returns a 503 *ErrorResponse if refund signing or transfers are disabled
+// on the daemon, or a 504 *ErrorResponse if the signing threshold wasn't
+// reached in time.
+func (s *SignService) Transfer(ctx context.Context, tx *TransferTx) (*TransferCosignResponse, *Response, error) {
+	var out TransferCosignResponse
+	resp, err := s.client.post(ctx, "tachi_signTransfer", tx, &out)
+	if err != nil {
+		return nil, resp, err
+	}
+	return &out, resp, nil
+}
