@@ -24,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -308,8 +309,27 @@ func (r *ErrorResponse) Error() string {
 
 // isLoopbackHost reports whether host (a URL hostname, no port) refers to
 // the local machine, where sending an API key over plain http/ws is safe.
+//
+// Deliberately strict: a prefix test such as strings.HasPrefix(host, "127.")
+// also matches DNS names like "127.evil.com" or "127.0.0.1.attacker.com",
+// which resolve to whatever their owner points them at. Treating those as
+// loopback would let an attacker who can influence the base URL — via an
+// environment variable, a config file, or a user-supplied custom-RPC field —
+// disable the https requirement for API keys and receive the key in
+// cleartext. Only a real address in the 127/8 block, the IPv6 loopback, or
+// the literal "localhost" qualifies.
 func isLoopbackHost(host string) bool {
-	return host == "localhost" || host == "127.0.0.1" || host == "::1" || strings.HasPrefix(host, "127.")
+	if host == "localhost" || host == "::1" || host == "[::1]" {
+		return true
+	}
+	// net.ParseIP rejects DNS names outright, and understands the octal,
+	// decimal and short forms ("127.1", "0177.0.0.1", "2130706433") that
+	// net/url normalises before we see them. IsLoopback then checks the
+	// address is genuinely in 127/8 (or ::1), which a DNS name can never be.
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+	return false
 }
 
 // setIf sets query[key] = value in q when value is non-empty.
