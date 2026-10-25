@@ -65,6 +65,69 @@ func TestNewClient_RejectsAPIKeyOverPlaintextRemote(t *testing.T) {
 	}
 }
 
+// isLoopbackHost must reject DNS names that merely start with "127." — an
+// attacker who controls such a name can point it at their own server and
+// receive the API key in cleartext. See issue #11.
+func TestIsLoopbackHost_RejectsDnsNamesStartingWith127(t *testing.T) {
+	for _, host := range []string{
+		"127.evil.com",
+		"127.0.0.1.attacker.com",
+		"127.example.org",
+		"127.localhost.evil.com",
+	} {
+		if isLoopbackHost(host) {
+			t.Errorf("isLoopbackHost(%q) = true, want false: a DNS name is not loopback", host)
+		}
+	}
+}
+
+// The reverse direction: genuine loopback addresses must still be accepted,
+// in every form URL normalisation can produce.
+func TestIsLoopbackHost_AcceptsGenuineLoopback(t *testing.T) {
+	for _, host := range []string{
+		"127.0.0.1",
+		"localhost",
+		"::1",
+		"[::1]",
+	} {
+		if !isLoopbackHost(host) {
+			t.Errorf("isLoopbackHost(%q) = false, want true", host)
+		}
+	}
+}
+
+// Ordinary non-loopback hosts, including RFC1918 and link-local, must be rejected.
+func TestIsLoopbackHost_RejectsNonLoopback(t *testing.T) {
+	for _, host := range []string{
+		"example.com",
+		"8.8.8.8",
+		"10.0.0.5",
+		"192.168.1.1",
+		"172.16.0.1",
+		"169.254.169.254",
+		"0.0.0.0",
+		"[::ffff:127.0.0.1]",
+		"[fe80::1]",
+		"localhost.evil.com",
+		"127",
+		"127.",
+		"",
+	} {
+		if isLoopbackHost(host) {
+			t.Errorf("isLoopbackHost(%q) = true, want false", host)
+		}
+	}
+}
+
+// The guard must actually fire for the bypass host: NewClient has to refuse to
+// build a client that would send the key over plaintext to 127.evil.com.
+func TestNewClient_RejectsAPIKeyToDnsNameStartingWith127(t *testing.T) {
+	_, err := NewClient(WithBaseURL("http://127.evil.com:26670/"), WithAPIKey("secret"))
+	if err == nil {
+		t.Fatal("expected error for API key over http to 127.evil.com, got nil")
+	}
+}
+
 func TestNewClient_AllowsAPIKeyOverPlaintextLoopback(t *testing.T) {
 	c, err := NewClient(WithBaseURL("http://127.0.0.1:26670/"), WithAPIKey("secret"))
 	if err != nil {
