@@ -534,9 +534,15 @@ Addresses are `0x`-prefixed 20-byte hex; hashes are 32-byte hex. All reads are a
 ```go
 token := "0x1bcb7ebf2a7bbfa12898d99fc8fb29354a16de58"
 res, _, err := c.EVM.Call(ctx, &tachi.EVMCallRequest{To: token, Data: "0x18160ddd"}) // totalSupply()
+if err != nil {
+	log.Fatal(err)
+}
 fmt.Println(res.Status, res.ReturnData)
 
 tx, _, err := c.Tx.Get(ctx, txHash, nil)
+if err != nil {
+	log.Fatal(err)
+}
 if tx.EVM != nil && tx.EVM.Executed {
 	fmt.Println(tx.EVM.Status, tx.EVM.GasUsed, tx.EVM.FeeSats, tx.EVM.RefundSats)
 }
