@@ -144,6 +144,7 @@ call through the shared `service` base type. Every method takes
 - [Dashboard](#dashboard) — explorer aggregate stats and search
 - [Bitcoin](#bitcoin) — pass-through Bitcoin Core JSON-RPC proxy
 - [Sign](#sign) — cooperative-refund threshold-signing ceremony
+- [EVM](#evm) — read-only EVM calls, code, receipts, accounts, storage
 - [Watchtower](#watchtower) — vault breach detection status and receipts
 - [WS](#ws-live-subscriptions) — live event subscriptions over WebSocket
 
@@ -293,7 +294,7 @@ c.Tx.BroadcastAsync(ctx, hexTx string) (*CometRPCResponse, *Response, error)
 c.Tx.FeeEstimate(ctx) (*FeeEstimateResponse, *Response, error)
 ```
 
-- **`Get`** — `GET /tachi_tx?hash=`. Looks up committed txs first, falls back to mempool. `hash` is the 40-char hex CometBFT hash. `opts.HAT` attaches the HAT commitment for the tx's first spent VTXO; `opts.RIP` additionally attaches a recursive inclusion proof and requires `opts.OriginEpoch`/`opts.FinalEpoch`.
+- **`Get`** — `GET /tachi_tx?hash=`. Looks up committed txs first, falls back to mempool. `hash` is the 40-char hex CometBFT hash. `opts.HAT` attaches the HAT commitment for the tx's first spent VTXO; `opts.RIP` additionally attaches a recursive inclusion proof and requires `opts.OriginEpoch`/`opts.FinalEpoch`. For `evm_deploy`/`evm_call` txs, `EVM` (`*TxEVM`) carries from/to/contract address, nonce, gas, max fee, input and method id; once `EVM.Executed`, the embedded `*EVMExecution` adds status, error, gas used, fee/refund sats, return data and logs, and `Vout` gains the gas-refund VTXO marked `Refund: true`.
 - **`Raw`** — `GET /tachi_txRaw?hash=`. Just `{TxHash, Hex}` — no decoding.
 - **`List`** — `GET /tachi_listTransactions`. Height-cursor paginated, newest-first — see [Pagination](#pagination).
 - **`Mempool`** — `GET /tachi_mempool`. All pending transactions in the CometBFT unconfirmed pool.
@@ -510,6 +511,35 @@ if err != nil {
 }
 fmt.Println(signed.Signatures, "quorum signatures collected")
 // caller now appends its own signature to signed.Refund and finalizes
+```
+
+### EVM
+
+```go
+c.EVM.Call(ctx, req *EVMCallRequest) (*EVMCallResponse, *Response, error)
+c.EVM.Code(ctx, address string) (*EVMCodeResponse, *Response, error)
+c.EVM.Receipt(ctx, hash string) (*EVMReceiptResponse, *Response, error)
+c.EVM.Account(ctx, address string) (*EVMAccountResponse, *Response, error)
+c.EVM.Storage(ctx, address, slot string) (*EVMStorageResponse, *Response, error)
+```
+
+Addresses are `0x`-prefixed 20-byte hex; hashes are 32-byte hex. All reads are against committed state.
+
+- **`Call`** — `POST /tachi_evmCall` `{from?, to?, data, gas?, nonce?}`. Like `eth_call`: runs calldata without committing. Leave `To` empty to simulate a deploy of `Data` and size its gas limit. Gas is capped at 1,000,000. Pass `Nonce` (the `NextNonce` you will sign with) so a simulated deploy gets the right contract address. Rate-limited per IP (429 `*ErrorResponse`). `EVMCallResponse{Status, GasUsed, ContractAddress, ReturnData, Logs, Error}`.
+- **`Code`** — `GET /tachi_evmCode?address=`. Runtime bytecode, `"0x"` when there is none.
+- **`Receipt`** — `GET /tachi_evmReceipt?hash=`. Status (1 ok, 0 reverted but applied), gas, fee/refund sats, return data and logs, plus tx hash, height, index, block time, sender and gas params. If the node's CometBFT hasn't indexed the tx, only the stored receipt fields are set. 400 `*ErrorResponse` if there is no receipt.
+- **`Account`** — `GET /tachi_evmAccount?address=`. Takes a `0x` address or a Tachi pubkey hex (echoed back as `Pubkey`). `{Address, Pubkey, Nonce, IsContract, CodeSize, CodeHash}`; with a pubkey, `Nonce` is the sender nonce the next tx must use.
+- **`Storage`** — `GET /tachi_evmStorage?address=&slot=`. One 32-byte slot value; `slot` is hex of up to 32 bytes, left-padded.
+
+```go
+token := "0x1bcb7ebf2a7bbfa12898d99fc8fb29354a16de58"
+res, _, err := c.EVM.Call(ctx, &tachi.EVMCallRequest{To: token, Data: "0x18160ddd"}) // totalSupply()
+fmt.Println(res.Status, res.ReturnData)
+
+tx, _, err := c.Tx.Get(ctx, txHash, nil)
+if tx.EVM != nil && tx.EVM.Executed {
+	fmt.Println(tx.EVM.Status, tx.EVM.GasUsed, tx.EVM.FeeSats, tx.EVM.RefundSats)
+}
 ```
 
 ### Watchtower

@@ -182,6 +182,16 @@ Transaction(ctx, tx *RefundTx) (*SignTransactionResponse, *Response, error) // P
 Transfer(ctx, tx *TransferTx) (*TransferCosignResponse, *Response, error)   // POST /tachi_signTransfer (regtest only)
 ```
 
+### `c.EVM` — read-only EVM calls, code, receipts, accounts, storage
+
+```go
+Call(ctx, req *EVMCallRequest) (*EVMCallResponse, *Response, error)      // POST /tachi_evmCall
+Code(ctx, address string) (*EVMCodeResponse, *Response, error)           // GET /tachi_evmCode
+Receipt(ctx, hash string) (*EVMReceiptResponse, *Response, error)        // GET /tachi_evmReceipt
+Account(ctx, address string) (*EVMAccountResponse, *Response, error)     // GET /tachi_evmAccount
+Storage(ctx, address, slot string) (*EVMStorageResponse, *Response, error) // GET /tachi_evmStorage
+```
+
 ### `c.Watchtower` — vault breach detection status and receipts
 
 ```go
