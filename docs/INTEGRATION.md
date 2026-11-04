@@ -532,8 +532,8 @@ Addresses are `0x`-prefixed 20-byte hex; hashes are 32-byte hex. All reads are a
 - **`Storage`** — `GET /tachi_evmStorage?address=&slot=`. One 32-byte slot value; `slot` is hex of up to 32 bytes, left-padded.
 
 ```go
-token := "0x1bcb7ebf2a7bbfa12898d99fc8fb29354a16de58"
-res, _, err := c.EVM.Call(ctx, &tachi.EVMCallRequest{To: token, Data: "0x18160ddd"}) // totalSupply()
+contract := "0x1bcb7ebf2a7bbfa12898d99fc8fb29354a16de58"
+res, _, err := c.EVM.Call(ctx, &tachi.EVMCallRequest{To: contract, Data: "0x18160ddd"}) // totalSupply()
 if err != nil {
 	log.Fatal(err)
 }
