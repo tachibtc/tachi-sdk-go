@@ -19,7 +19,9 @@ type GetTransactionResponse struct {
 	// TxID is the segwit-style transaction id (witness stripped).
 	TxID string `json:"txid"`
 	// Type is transfer/deposit/withdraw/lock/unlock/vault_open/
-	// vault_state_advance/vault_close/vault_breach/unknown.
+	// vault_state_advance/vault_close/vault_breach/evm_deploy/evm_call/
+	// bridge_route_register/bridge_lock/bridge_settle/bridge_refund/
+	// bridge_redeem/unknown.
 	Type string `json:"type"`
 	// State is committed/pending/failed.
 	State string `json:"state"`
@@ -53,6 +55,10 @@ type GetTransactionResponse struct {
 	// when requested via TxOptions.RIP. Decode with json.Unmarshal into a
 	// caller-defined struct.
 	RIP json.RawMessage `json:"rip,omitempty"`
+	// EVM is the EVM view of an evm_deploy/evm_call tx; nil for other types.
+	// Once executed with a refund, Vout also carries the refund VTXO
+	// (Refund: true).
+	EVM *TxEVM `json:"evm,omitempty"`
 }
 
 // ListTransactionsResponse is returned by TxService.List. Pagination is
@@ -84,7 +90,9 @@ type TxDecodeResponse struct {
 	// TxHash is the hex-encoded tmhash of the raw transaction bytes.
 	TxHash string `json:"tx_hash"`
 	// Type is transfer/deposit/withdraw/lock/unlock/vault_open/
-	// vault_state_advance/vault_close/vault_breach/unknown.
+	// vault_state_advance/vault_close/vault_breach/evm_deploy/evm_call/
+	// bridge_route_register/bridge_lock/bridge_settle/bridge_refund/
+	// bridge_redeem/unknown.
 	Type string `json:"type"`
 	// Version is the TachiTx protocol version byte.
 	Version uint8 `json:"version"`

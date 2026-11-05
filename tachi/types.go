@@ -32,6 +32,9 @@ type TxVout struct {
 	Amount int64 `json:"amount"`
 	// Script is the hex-encoded locking script attached to the output.
 	Script string `json:"script"` // hex
+	// Refund marks the gas refund VTXO of a committed EVM tx. It is not in
+	// the signed outputs: the daemon creates it at index len(outputs).
+	Refund bool `json:"refund,omitempty"`
 }
 
 // HATProofResponse is the hex-encoded view of a hat.HAT commitment.

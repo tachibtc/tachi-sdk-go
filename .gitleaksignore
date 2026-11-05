@@ -1,0 +1,2 @@
+# False positive: an ERC-20 contract address in an EVM example, assigned to a variable named token (renamed since).
+b989947eb156a36bcd338ccd18d5c128b0128b44:docs/INTEGRATION.md:generic-api-key:535

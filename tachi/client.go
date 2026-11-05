@@ -99,6 +99,8 @@ type Client struct {
 	Bitcoin *BitcoinService
 	// Sign wraps the cooperative-refund threshold-signing ceremony.
 	Sign *SignService
+	// EVM groups the read-only EVM endpoints: call simulation, code, receipts, accounts, and storage.
+	EVM *EVMService
 	// Watchtower groups the vault watchtower's status and breach-receipt endpoints.
 	Watchtower *WatchtowerService
 	// WS opens live websocket subscriptions for chain alerts.
@@ -182,6 +184,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	c.Dashboard = (*DashboardService)(&c.common)
 	c.Bitcoin = (*BitcoinService)(&c.common)
 	c.Sign = (*SignService)(&c.common)
+	c.EVM = (*EVMService)(&c.common)
 	c.Watchtower = (*WatchtowerService)(&c.common)
 	c.WS = (*WSService)(&c.common)
 	return c, nil
