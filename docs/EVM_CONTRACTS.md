@@ -52,12 +52,13 @@ Every command and output here was run against regtest on 2026-11-05. The finishe
    go version   # must print go1.26 or higher
    ```
    If it's older, install the latest from https://go.dev/dl.
-2. **The Solidity compiler `solc` 0.8.30 or newer**, to compile contracts:
+2. **The Solidity compiler `solc`, any 0.8.x from 0.8.24 on** (the first with Cancun support; the example contract's `pragma solidity ^0.8.24` accepts any of them, and was tested with 0.8.30), to compile contracts:
    ```bash
    brew install solidity        # macOS
    # Linux: sudo snap install solc, or download from https://github.com/ethereum/solidity/releases
-   solc --version
+   solc --version   # must print 0.8.24 to 0.8.x
    ```
+   If your package manager installs a 0.9.x, download a 0.8.x binary from the releases page instead.
    The example already includes the compiled contract in `build/`, so you can skip compiling the first time.
 3. **A code editor**, for example VS Code with the Go extension.
 4. **A testnet wallet (12/24-word recovery phrase) that holds free VTXOs** (see step 3).
@@ -159,7 +160,7 @@ Free balance:     197163 sats in 17 VTXOs
 
 ```solidity
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity ^0.8.24;
 
 contract Counter {
     uint256 public count;
@@ -481,11 +482,28 @@ fmt.Println(callView(ctx, c, token, tokenAddr, "symbol")[0])          // GP
 fmt.Println(callView(ctx, c, token, tokenAddr, "balanceOf", w.Me)[0]) // 9999999999999999999900000
 
 // Write: send 1 token (18 decimals) to a friend
+friend := "0x…" // the friend's EVM address
+// HexToAddress turns anything invalid into the zero address, and tokens sent there are lost.
+if !common.IsHexAddress(friend) || common.HexToAddress(friend) == (common.Address{}) {
+	fail("friend is not a valid, non-zero EVM address")
+}
 one := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil) // 1 token = 10^18 units
-data, err := token.Pack("transfer", common.HexToAddress("0xFRIEND_EVM_ADDRESS"), one)
+data, err := token.Pack("transfer", common.HexToAddress(friend), one)
 must(err)
 r := waitForReceipt(ctx, c, w.sendWrite(ctx, c, tokenAddr, data))
-fmt.Println("status", r.Status)
+if r.Status != 1 {
+	fail("transfer failed on chain: " + revertReason(r.Error, r.ReturnData))
+}
+// Some tokens return false instead of reverting, so Status 1 alone isn't proof.
+// (Very old tokens return nothing at all: then an empty ReturnData means success.)
+if r.ReturnData != "" && r.ReturnData != "0x" {
+	out, err := token.Unpack("transfer", common.FromHex(r.ReturnData))
+	must(err)
+	if ok, _ := out[0].(bool); !ok {
+		fail("transfer returned false: no tokens were sent")
+	}
+}
+fmt.Println("sent")
 ```
 
 > 💡 Token amounts are in the token's smallest unit. Read `decimals()` first: with 18 decimals, 1 token is 10^18 units.
@@ -530,6 +548,7 @@ For signet, use `signet.tachibtcscan.com`. The explorer is great for learning; u
 | Error / symptom | Cause | Fix |
 |---|---|---|
 | `Set MNEMONIC (or PRIVATE_KEY) in .env` | `.env` is missing, or you ran from another folder | Create `.env` (step 3a), and run from the project folder. |
+| `PRIVATE_KEY must be 64 hex characters (32 bytes)` | The key is too short, too long, or has a `0x`-less typo | Paste the full 64-character hex key. |
 | `MNEMONIC has N words, want 12 or 24` | A missing word, or missing quotes | Wrap the phrase in `"…"` and check every word. |
 | `whoami` shows a different EVM address than the extension | A typo in a word (it still makes *a* key, just not yours), or another account | Check every word, and set `KEY_PATH` to the extension's account. |
 | `Not enough funds: need N sats, you have 0 sats` | No free VTXOs on this key | Get testnet funds (step 3b). Try a different `KEY_PATH`. |

@@ -376,7 +376,7 @@ or 32/33-byte hex) throughout this service.
 - **`VTXOs`** — `GET /tachi_addressVtxos`. Unspent VTXOs by default; pass `includeSpent=true` for full history. Items are `VTXOItem`, the same shape as `VTXOResponse` (see [VTXO](#vtxo)).
 - **`Transactions`** — `GET /tachi_addressTransactions`. Height-cursor paginated (`opts.BeforeHeight`, `opts.PageSize`) — see [Pagination](#pagination). The scan is bounded by a server-side time budget rather than a fixed block count, so a sparse address can return zero transactions along with a valid cursor to keep walking.
 - **`Balance`** — `GET /tachi_balance`. Just `{Pubkey, BalanceSat}`.
-- **`Nonce`** — `GET /tachi_nonce`. `{Address, Nonce, NextNonce}` — use `NextNonce` for your next outgoing transaction.
+- **`Nonce`** — `GET /tachi_nonce`. `{Address, Nonce, NextNonce}` — use `NextNonce` for your next outgoing transaction. For EVM txs (`TxDeploy`/`TxCall`), use `EVM.Account(pubkey).Nonce` instead: `NextNonce` is one too high for them.
 - **`Mempool`** — `GET /tachi_mempoolByAddress`. Pending transactions crediting or spending this address. Poll once for current state, then prefer `WS.Subscribe` for new arrivals instead of re-polling.
 
 ```go
@@ -525,7 +525,7 @@ c.EVM.Storage(ctx, address, slot string) (*EVMStorageResponse, *Response, error)
 
 Addresses are `0x`-prefixed 20-byte hex; hashes are 32-byte hex. All reads are against committed state.
 
-- **`Call`** — `POST /tachi_evmCall` `{from?, to?, data, gas?, nonce?}`. Like `eth_call`: runs calldata without committing. Leave `To` empty to simulate a deploy of `Data` and size its gas limit. Gas is capped at 1,000,000. Pass `Nonce` (the `NextNonce` you will sign with) so a simulated deploy gets the right contract address. Rate-limited per IP (429 `*ErrorResponse`). `EVMCallResponse{Status, GasUsed, ContractAddress, ReturnData, Logs, Error}`.
+- **`Call`** — `POST /tachi_evmCall` `{from?, to?, data, gas?, nonce?}`. Like `eth_call`: runs calldata without committing. Leave `To` empty to simulate a deploy of `Data` and size its gas limit. Gas is capped at 1,000,000. Pass `Nonce` (the one you will sign with: `EVM.Account(pubkey).Nonce`, not `Address.Nonce`'s `NextNonce`, which is one too high for EVM txs) so a simulated deploy gets the right contract address. Rate-limited per IP (429 `*ErrorResponse`). `EVMCallResponse{Status, GasUsed, ContractAddress, ReturnData, Logs, Error}`.
 - **`Code`** — `GET /tachi_evmCode?address=`. Runtime bytecode, `"0x"` when there is none.
 - **`Receipt`** — `GET /tachi_evmReceipt?hash=`. Status (1 ok, 0 reverted but applied), gas, fee/refund sats, return data and logs, plus tx hash, height, index, block time, sender and gas params. If the node's CometBFT hasn't indexed the tx, only the stored receipt fields are set. 400 `*ErrorResponse` if there is no receipt.
 - **`Account`** — `GET /tachi_evmAccount?address=`. Takes a `0x` address or a Tachi pubkey hex (echoed back as `Pubkey`). `{Address, Pubkey, Nonce, IsContract, CodeSize, CodeHash}`; with a pubkey, `Nonce` is the sender nonce the next tx must use.

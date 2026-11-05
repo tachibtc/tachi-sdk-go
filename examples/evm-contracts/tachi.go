@@ -75,7 +75,9 @@ func loadWallet() *wallet {
 		must(err)
 	} else if k := strings.TrimPrefix(os.Getenv("PRIVATE_KEY"), "0x"); k != "" {
 		b, err := hex.DecodeString(k)
-		must(err)
+		if err != nil || len(b) != 32 {
+			fail("PRIVATE_KEY must be 64 hex characters (32 bytes)")
+		}
 		priv, _ = btcec.PrivKeyFromBytes(b)
 	} else {
 		fail("Set MNEMONIC (or PRIVATE_KEY) in .env. Testnet only!")

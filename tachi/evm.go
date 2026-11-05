@@ -26,7 +26,8 @@ type EVMCallRequest struct {
 	// Nonce, when set, is the sender nonce to simulate at; it fixes a
 	// simulated deploy's address. Without it a From simulates at the EVM
 	// state nonce, which can lag the sender nonce, so pass the nonce you
-	// will sign with (Address.Nonce's NextNonce).
+	// will sign with: EVMService.Account's Nonce for your pubkey. (Not
+	// Address.Nonce's NextNonce, which is one too high for EVM txs.)
 	Nonce *uint64 `json:"nonce,omitempty"`
 }
 
