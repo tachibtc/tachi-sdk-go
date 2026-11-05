@@ -4,10 +4,11 @@
 package main
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
+	"math"
 )
 
 const (
@@ -39,50 +40,76 @@ type EVMTx struct {
 	Sig      []byte // 64-byte BIP-340 signature
 }
 
-// encode serializes the tx. With forSigning the signature is left out:
-// that is the preimage the signature commits to.
-func (tx *EVMTx) encode(forSigning bool) []byte {
-	var b bytes.Buffer
-	u16 := func(v int) { binary.Write(&b, binary.BigEndian, uint16(v)) }
-	u32 := func(v int) { binary.Write(&b, binary.BigEndian, uint32(v)) }
-	u64 := func(v uint64) { binary.Write(&b, binary.BigEndian, v) }
-
-	b.WriteByte(txVersion)
-	b.WriteByte(tx.Type)
-	u16(len(tx.Inputs))
-	for _, id := range tx.Inputs {
-		b.Write(id)
-		b.Write(make([]byte, 32)) // L1 txid: unused by EVM txs
-		u32(0)                    // L1 vout
-		u64(0)                    // L1 value
-		u16(0)                    // empty sigScript
+// validate checks the limits the daemon enforces, so encode's length fields can't overflow.
+func (tx *EVMTx) validate() error {
+	switch {
+	case len(tx.PubKey) != 32:
+		return errors.New("pubkey must be a 32-byte x-only key")
+	case len(tx.Inputs) == 0 || len(tx.Inputs) > math.MaxUint16:
+		return errors.New("need 1 to 65535 inputs")
+	case len(tx.Outputs) > math.MaxUint16:
+		return errors.New("too many outputs")
+	case len(tx.Data) > 0xffffff:
+		return errors.New("data exceeds 16 MiB")
+	case tx.GasLimit == 0 || tx.GasLimit > maxGas:
+		return errors.New("gas limit must be 1 to 1,000,000")
 	}
-	u16(len(tx.Outputs))
+	for _, id := range tx.Inputs {
+		if len(id) != 32 {
+			return errors.New("input VTXO IDs must be 32 bytes")
+		}
+	}
 	for _, o := range tx.Outputs {
-		u16(len(o.Owner))
-		b.Write(o.Owner)
-		u64(o.Amount)
-		u16(0) // empty script
+		if len(o.Owner) != 32 || o.Amount == 0 || o.Amount > math.MaxInt64 {
+			return errors.New("outputs need a 32-byte owner and a positive amount")
+		}
+	}
+	return nil
+}
+
+// encode serializes the tx; call validate first. With forSigning the
+// signature is left out: that is the preimage the signature commits to.
+func (tx *EVMTx) encode(forSigning bool) []byte {
+	be := binary.BigEndian
+	// Lengths below are bounded by validate (and a signature is 64 bytes).
+	u16 := func(b []byte, n int) []byte { return be.AppendUint16(b, uint16(n)) } // #nosec G115 -- bounded by validate
+	u32 := func(b []byte, n int) []byte { return be.AppendUint32(b, uint32(n)) } // #nosec G115 -- bounded by validate
+
+	b := []byte{txVersion, tx.Type}
+	b = u16(b, len(tx.Inputs))
+	for _, id := range tx.Inputs {
+		b = append(b, id...)
+		b = append(b, make([]byte, 32)...) // L1 txid: unused by EVM txs
+		b = be.AppendUint32(b, 0)          // L1 vout
+		b = be.AppendUint64(b, 0)          // L1 value
+		b = u16(b, 0)                      // empty sigScript
+	}
+	b = u16(b, len(tx.Outputs))
+	for _, o := range tx.Outputs {
+		b = u16(b, len(o.Owner))
+		b = append(b, o.Owner...)
+		b = be.AppendUint64(b, o.Amount)
+		b = u16(b, 0) // empty script
 	}
 	sig := tx.Sig
 	if forSigning {
 		sig = nil
 	}
-	u64(0) // Fee: always 0, gas pays instead
-	u64(tx.Nonce)
-	u16(len(tx.PubKey))
-	b.Write(tx.PubKey)
-	u16(len(sig))
-	b.Write(sig)
-	u32(0) // empty PSBT payload
-	u64(tx.GasLimit)
-	u64(tx.GasPrice)
+	b = be.AppendUint64(b, 0) // Fee: always 0, gas pays instead
+	b = be.AppendUint64(b, tx.Nonce)
+	b = u16(b, len(tx.PubKey))
+	b = append(b, tx.PubKey...)
+	b = u16(b, len(sig))
+	b = append(b, sig...)
+	b = u32(b, 0) // empty PSBT payload
+	b = be.AppendUint64(b, tx.GasLimit)
+	b = be.AppendUint64(b, tx.GasPrice)
 	if len(tx.Data) > 0 || tx.To != [20]byte{} {
-		b.Write(tx.To[:])
-		u32(len(tx.Data))
-		b.Write(tx.Data)
+		b = append(b, tx.To[:]...)
+		b = u32(b, len(tx.Data))
+		b = append(b, tx.Data...)
 	}
-	return b.Bytes()
+	return b
 }
 
 // sigHash is the 32-byte digest you sign.

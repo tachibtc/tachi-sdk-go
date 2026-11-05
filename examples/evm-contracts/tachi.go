@@ -98,7 +98,7 @@ func (w *wallet) pickInputs(ctx context.Context, c *tachi.Client, need uint64) (
 	must(err)
 	var free []tachi.VTXOItem
 	for _, v := range res.VTXOs {
-		if !v.Spent && !v.Locked {
+		if !v.Spent && !v.Locked && v.Amount > 0 {
 			free = append(free, v)
 		}
 	}
@@ -112,7 +112,7 @@ func (w *wallet) pickInputs(ctx context.Context, c *tachi.Client, need uint64) (
 		id, err := hex.DecodeString(v.ID)
 		must(err)
 		ids = append(ids, id)
-		sum += uint64(v.Amount)
+		sum += uint64(v.Amount) // #nosec G115 -- only positive amounts are kept above
 	}
 	if sum < need {
 		fail(fmt.Sprintf("Not enough funds: need %d sats, you have %d sats in free VTXOs", need, sum))
@@ -138,6 +138,7 @@ func (w *wallet) sendEvmTx(ctx context.Context, c *tachi.Client, to *common.Addr
 		tx.Outputs = []Output{{Owner: w.PubKey, Amount: change}}
 	}
 
+	must(tx.validate())
 	sig, err := schnorr.Sign(w.priv, tx.sigHash())
 	must(err)
 	tx.Sig = sig.Serialize()
