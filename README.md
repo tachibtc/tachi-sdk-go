@@ -46,7 +46,9 @@ local or private node, e.g. `http://127.0.0.1:26670/`.
 
 See [`docs/INTEGRATION.md`](./docs/INTEGRATION.md) for a fuller integration
 guide (auth model, error handling, pagination, every service with request/
-response shapes) written to hand to external consumers of this SDK.
+response shapes) written to hand to external consumers of this SDK. New to
+smart contracts? [`docs/EVM_CONTRACTS.md`](./docs/EVM_CONTRACTS.md) is a
+beginner guide to deploying and calling Solidity contracts from Go.
 
 ## Client options
 
@@ -182,6 +184,16 @@ Transaction(ctx, tx *RefundTx) (*SignTransactionResponse, *Response, error) // P
 Transfer(ctx, tx *TransferTx) (*TransferCosignResponse, *Response, error)   // POST /tachi_signTransfer (regtest only)
 ```
 
+### `c.EVM` — read-only EVM calls, code, receipts, accounts, storage
+
+```go
+Call(ctx, req *EVMCallRequest) (*EVMCallResponse, *Response, error)      // POST /tachi_evmCall
+Code(ctx, address string) (*EVMCodeResponse, *Response, error)           // GET /tachi_evmCode
+Receipt(ctx, hash string) (*EVMReceiptResponse, *Response, error)        // GET /tachi_evmReceipt
+Account(ctx, address string) (*EVMAccountResponse, *Response, error)     // GET /tachi_evmAccount
+Storage(ctx, address, slot string) (*EVMStorageResponse, *Response, error) // GET /tachi_evmStorage
+```
+
 ### `c.Watchtower` — vault breach detection status and receipts
 
 ```go
@@ -249,6 +261,11 @@ daemon's master `BTC_RPC_API_KEY`.
   most services against a live daemon.
 - [`examples/websocket`](./examples/websocket) — opens a block-alert
   subscription and prints the first event.
+- [`examples/evm-contracts`](./examples/evm-contracts) — deploys a Solidity
+  contract, reads it, writes to it and decodes its events, building and
+  signing TxDeploy/TxCall itself. Its own module (go-ethereum and btcd stay
+  out of the SDK's dependencies); walked through step by step in
+  [`docs/EVM_CONTRACTS.md`](./docs/EVM_CONTRACTS.md).
 
 Run either with a daemon listening on `127.0.0.1:26670`:
 
